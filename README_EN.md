@@ -84,29 +84,32 @@ Built applications will be in the `dist` directory.
 
 ### macOS Installation Issue Fix
 
-If you see "App is damaged" or "Cannot verify developer" when opening the app on macOS, this is because the app is not notarized by Apple. Follow these steps to resolve:
+If you see "App is damaged" or "Cannot verify developer" when opening the app on macOS, this is because the app is not notarized by Apple.
 
-**Method 1: Terminal Command (Recommended)**
+**Solution: Open Terminal, copy and paste one of the following complete commands**
 
-Open Terminal and execute the following command (replace `FTP.app` with the actual app path):
-
-```bash
-sudo xattr -cr /Applications/FTP.app
-```
-
-Or if the app is in a different location:
+If the app is in the "Applications" folder:
 
 ```bash
-sudo xattr -cr /path/to/FTP.app
+sudo xattr -cr /Applications/FTP.app && echo "✓ Successfully removed quarantine attribute, you can now open the app"
 ```
 
-**Method 2: System Settings**
+If the app is in the "Downloads" folder (not moved after download):
 
-1. Open "System Settings" > "Privacy & Security"
-2. Find the blocked app notification at the bottom
-3. Click "Open Anyway" button
+```bash
+sudo xattr -cr ~/Downloads/FTP.app && echo "✓ Successfully removed quarantine attribute, you can now open the app"
+```
 
-After executing either method, the app will work normally.
+If the app is on the Desktop:
+
+```bash
+sudo xattr -cr ~/Desktop/FTP.app && echo "✓ Successfully removed quarantine attribute, you can now open the app"
+```
+
+**Notes:**
+- You'll need to enter your Mac login password when executing the command (input won't be visible, just press Enter after typing)
+- After seeing "✓ Successfully removed quarantine attribute", you can open the app normally
+- This operation is safe - it only removes the system's quarantine attribute flag
 
 ## Usage
 
