@@ -82,6 +82,32 @@ npm run build:all
 
 Built applications will be in the `dist` directory.
 
+### macOS Installation Issue Fix
+
+If you see "App is damaged" or "Cannot verify developer" when opening the app on macOS, this is because the app is not notarized by Apple. Follow these steps to resolve:
+
+**Method 1: Terminal Command (Recommended)**
+
+Open Terminal and execute the following command (replace `FTP.app` with the actual app path):
+
+```bash
+sudo xattr -cr /Applications/FTP.app
+```
+
+Or if the app is in a different location:
+
+```bash
+sudo xattr -cr /path/to/FTP.app
+```
+
+**Method 2: System Settings**
+
+1. Open "System Settings" > "Privacy & Security"
+2. Find the blocked app notification at the bottom
+3. Click "Open Anyway" button
+
+After executing either method, the app will work normally.
+
 ## Usage
 
 ### 1. Add FTP Configuration
