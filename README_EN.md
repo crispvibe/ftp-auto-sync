@@ -84,32 +84,13 @@ Built applications will be in the `dist` directory.
 
 ### macOS Installation Issue Fix
 
-If you see "App is damaged" or "Cannot verify developer" when opening the app on macOS, this is because the app is not notarized by Apple.
-
-**Solution: Open Terminal, copy and paste one of the following complete commands**
-
-If the app is in the "Applications" folder:
+If you see "App is damaged" or "Cannot verify developer" when opening the app on macOS, open Terminal and execute this command:
 
 ```bash
-sudo xattr -cr /Applications/FTP.app && echo "✓ Successfully removed quarantine attribute, you can now open the app"
+sudo xattr -cr /Applications/FTP.app
 ```
 
-If the app is in the "Downloads" folder (not moved after download):
-
-```bash
-sudo xattr -cr ~/Downloads/FTP.app && echo "✓ Successfully removed quarantine attribute, you can now open the app"
-```
-
-If the app is on the Desktop:
-
-```bash
-sudo xattr -cr ~/Desktop/FTP.app && echo "✓ Successfully removed quarantine attribute, you can now open the app"
-```
-
-**Notes:**
-- You'll need to enter your Mac login password when executing the command (input won't be visible, just press Enter after typing)
-- After seeing "✓ Successfully removed quarantine attribute", you can open the app normally
-- This operation is safe - it only removes the system's quarantine attribute flag
+Enter your Mac login password and press Enter (password won't be visible). The app will work normally after execution.
 
 ## Usage
 
