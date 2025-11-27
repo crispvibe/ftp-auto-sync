@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![FTP Auto Sync](ftp.png)
+<img src="ftp.png" alt="FTP Auto Sync" width="120" />
 
 A modern cross-platform desktop application for monitoring local directories and automatically uploading modified files to multiple FTP servers.
 
@@ -15,30 +15,30 @@ A modern cross-platform desktop application for monitoring local directories and
 
 </div>
 
-## ✨ Features
+## Features
 
-- 🎯 **Multiple FTP Configurations** - Manage multiple FTP server configurations simultaneously
-- 📁 **Real-time File Monitoring** - Automatically detect file changes and upload
-- 🔄 **Auto Upload** - Files are automatically uploaded to FTP server after saving
-- 📊 **Grouped Logs** - Independent real-time log display for each FTP configuration
-- 🎛️ **Toggle Control** - Independent start/stop control for each FTP connection
-- 🎨 **Modern UI** - Beautiful dark theme interface
-- 🔒 **Secure Connection** - Support for FTPS encrypted transmission
-- ⚡ **High Performance** - Built with Electron and Chokidar
-- 💻 **Cross-platform** - Support for macOS (Intel & Apple Silicon) and Windows (x64 & ARM64)
-- 🔐 **Smart Validation** - Auto-test FTP connection before starting, avoid invalid configurations
-- 🔄 **Auto Retry** - Automatic retry on upload failure with exponential backoff strategy
-- 🔒 **Concurrency Control** - Prevent duplicate uploads of the same file, avoid connection conflicts
-- ✂️ **Auto Trim** - Input fields auto-trim whitespace to avoid configuration errors
-- 🖱️ **Quick Actions** - Support double-click to edit, keyboard shortcuts, and more
+- **Multiple FTP Configurations** - Manage multiple FTP server configurations simultaneously
+- **Real-time File Monitoring** - Automatically detect file changes and upload
+- **Auto Upload** - Files are automatically uploaded to FTP server after saving
+- **Grouped Logs** - Independent real-time log display for each FTP configuration
+- **Toggle Control** - Independent start/stop control for each FTP connection
+- **Modern UI** - Beautiful dark theme interface
+- **Secure Connection** - Support for FTPS encrypted transmission
+- **High Performance** - Built with Electron and Chokidar
+- **Cross-platform** - Support for macOS (Intel & Apple Silicon) and Windows (x64 & ARM64)
+- **Smart Validation** - Auto-test FTP connection before starting, avoid invalid configurations
+- **Auto Retry** - Automatic retry on upload failure with exponential backoff strategy
+- **Concurrency Control** - Prevent duplicate uploads of the same file, avoid connection conflicts
+- **Auto Trim** - Input fields auto-trim whitespace to avoid configuration errors
+- **Quick Actions** - Support double-click to edit, keyboard shortcuts, and more
 
-## 📸 Screenshots
+## Screenshots
 
 ![Application Screenshot](截屏2025-11-28%2000.46.05_副本.png)
 
 *Modern dark theme interface with multiple FTP configuration management and real-time log display*
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -82,7 +82,7 @@ npm run build:all
 
 Built applications will be in the `dist` directory.
 
-## 📖 Usage
+## Usage
 
 ### 1. Add FTP Configuration
 
@@ -123,14 +123,14 @@ Before saving configuration, click "Test Connection" button to verify FTP connec
 - **Delete**: Remove unwanted configuration
 - **Start/Stop**: Control monitoring toggle
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Electron**: Cross-platform desktop application framework
 - **Chokidar**: High-performance file system monitoring
 - **basic-ftp**: FTP client library
 - **Lucide Icons**: Modern icon library
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ftp-auto-sync/
@@ -150,7 +150,7 @@ ftp-auto-sync/
     └── ISSUE_TEMPLATE/     # Issue templates
 ```
 
-## ⚙️ Configuration File
+## Configuration File
 
 Configuration information is saved in `ftp-configs.json` in the application directory.
 
@@ -163,7 +163,7 @@ Refer to `ftp-configs.example.json` for configuration file format.
 
 You can directly copy the `ftp-configs.json` file for backup or restore configuration on other devices.
 
-## 🔒 Security
+## Security
 
 - Configuration information (including passwords) is stored in plain text in `ftp-configs.json`, please keep it safe
 - It's recommended to use FTPS secure connection
@@ -172,35 +172,27 @@ You can directly copy the `ftp-configs.json` file for backup or restore configur
 
 For more security information, see [SECURITY.md](SECURITY.md).
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
-If this project helps you, please give it a ⭐️ Star!
+If this project helps you, please give it a Star!
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
 
-## 🔗 Links
+## Links
 
 - **GitHub Repository**: [https://github.com/crispvibe/ftp-auto-sync](https://github.com/crispvibe/ftp-auto-sync)
 - **Bug Reports**: [Issues](https://github.com/crispvibe/ftp-auto-sync/issues)
 - **Feature Requests**: [Discussions](https://github.com/crispvibe/ftp-auto-sync/discussions)
 
-## 📮 Contact
+## Contact
 
 - GitHub: [@crispvibe](https://github.com/crispvibe)
-
-## 🙏 Acknowledgments
-
-Thanks to all contributors who have helped this project!
-
-- [Electron](https://www.electronjs.org/)
-- [Chokidar](https://github.com/paulmillr/chokidar)
-- [basic-ftp](https://github.com/patrickjuchli/basic-ftp)
-- [Lucide Icons](https://lucide.dev/)
+- Email: 99400504@qq.com
 
 ---
 
-Made with ❤️ by [crispvibe](https://github.com/crispvibe)
+Made by [crispvibe](https://github.com/crispvibe)

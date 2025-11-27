@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![FTP Auto Sync](ftp.png)
+<img src="ftp.png" alt="FTP Auto Sync" width="120" />
 
 一个现代化的跨平台桌面应用，用于监控本地目录并自动上传修改的文件到多个 FTP 服务器。
 
@@ -15,30 +15,30 @@
 
 </div>
 
-## ✨ 功能特性
+## 功能特性
 
-- 🎯 **多 FTP 配置支持** - 同时管理多个 FTP 服务器配置
-- 📁 **实时文件监控** - 自动检测文件修改并上传
-- 🔄 **自动上传** - 文件保存后自动上传到 FTP 服务器
-- 📊 **分组日志** - 每个 FTP 配置独立的实时日志显示
-- 🎛️ **开关控制** - 独立控制每个 FTP 连接的启动/停止
-- 🎨 **现代化 UI** - 美观的深色主题界面
-- 🔒 **安全连接** - 支持 FTPS 加密传输
-- ⚡ **高性能** - 基于 Electron 和 Chokidar 构建
-- 💻 **跨平台** - 支持 macOS (Intel & Apple Silicon) 和 Windows (x64 & ARM64)
-- 🔐 **智能验证** - 启动前自动测试 FTP 连接，避免无效配置
-- 🔄 **自动重试** - 上传失败时自动重试，支持指数退避策略
-- 🔒 **并发控制** - 防止同一文件重复上传，避免连接冲突
-- ✂️ **自动清理** - 输入框自动去除首尾空格，避免配置错误
-- 🖱️ **快捷操作** - 支持双击编辑、快捷键等便捷操作
+- **多 FTP 配置支持** - 同时管理多个 FTP 服务器配置
+- **实时文件监控** - 自动检测文件修改并上传
+- **自动上传** - 文件保存后自动上传到 FTP 服务器
+- **分组日志** - 每个 FTP 配置独立的实时日志显示
+- **开关控制** - 独立控制每个 FTP 连接的启动/停止
+- **现代化 UI** - 美观的深色主题界面
+- **安全连接** - 支持 FTPS 加密传输
+- **高性能** - 基于 Electron 和 Chokidar 构建
+- **跨平台** - 支持 macOS (Intel & Apple Silicon) 和 Windows (x64 & ARM64)
+- **智能验证** - 启动前自动测试 FTP 连接，避免无效配置
+- **自动重试** - 上传失败时自动重试，支持指数退避策略
+- **并发控制** - 防止同一文件重复上传，避免连接冲突
+- **自动清理** - 输入框自动去除首尾空格，避免配置错误
+- **快捷操作** - 支持双击编辑、快捷键等便捷操作
 
-## 📸 截图
+## 截图
 
 ![应用截图](截屏2025-11-28%2000.46.05_副本.png)
 
 *现代化的深色主题界面，支持多 FTP 配置管理和实时日志显示*
 
-## 🚀 快速开始
+## 快速开始
 
 ### 前置要求
 
@@ -82,7 +82,7 @@ npm run build:all
 
 打包后的应用将在 `dist` 目录中。
 
-## 📖 使用说明
+## 使用说明
 
 ### 1. 添加 FTP 配置
 
@@ -123,14 +123,14 @@ npm run build:all
 - **删除**: 删除不需要的配置
 - **启动/停止**: 控制监控的开关
 
-## 🛠️ 技术栈
+## 技术栈
 
 - **Electron**: 跨平台桌面应用框架
 - **Chokidar**: 高性能文件系统监控
 - **basic-ftp**: FTP 客户端库
 - **Lucide Icons**: 现代图标库
 
-## 📁 项目结构
+## 项目结构
 
 ```
 ftp-auto-sync/
@@ -150,7 +150,7 @@ ftp-auto-sync/
     └── ISSUE_TEMPLATE/     # Issue 模板
 ```
 
-## ⚙️ 配置文件
+## 配置文件
 
 配置信息保存在应用目录下的 `ftp-configs.json` 文件中。
 
@@ -163,7 +163,7 @@ ftp-auto-sync/
 
 可以直接复制 `ftp-configs.json` 文件进行备份，或在其他设备上恢复配置。
 
-## 🔒 安全
+## 安全
 
 - 配置信息（包括密码）以明文形式存储在 `ftp-configs.json`，请妥善保管
 - 建议使用 FTPS 安全连接
@@ -172,7 +172,7 @@ ftp-auto-sync/
 
 更多安全信息请查看 [SECURITY.md](SECURITY.md)。
 
-## ⚠️ 注意事项
+## 注意事项
 
 1. 确保 FTP 服务器允许远程连接
 2. 监控大型目录可能会消耗较多系统资源
@@ -184,35 +184,27 @@ ftp-auto-sync/
 - macOS 10.13 或更高版本
 - Node.js 16 或更高版本
 
-## 🤝 贡献
+## 贡献
 
 欢迎贡献！请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-如果这个项目对你有帮助，请给个 ⭐️ Star 支持一下！
+如果这个项目对你有帮助，请给个 Star 支持一下！
 
-## 📝 许可证
+## 许可证
 
 本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-## 🔗 链接
+## 链接
 
 - **GitHub 仓库**: [https://github.com/crispvibe/ftp-auto-sync](https://github.com/crispvibe/ftp-auto-sync)
 - **问题反馈**: [Issues](https://github.com/crispvibe/ftp-auto-sync/issues)
 - **功能建议**: [Discussions](https://github.com/crispvibe/ftp-auto-sync/discussions)
 
-## 📮 联系方式
+## 联系方式
 
 - GitHub: [@crispvibe](https://github.com/crispvibe)
-
-## 🙏 致谢
-
-感谢所有为这个项目做出贡献的人！
-
-- [Electron](https://www.electronjs.org/)
-- [Chokidar](https://github.com/paulmillr/chokidar)
-- [basic-ftp](https://github.com/patrickjuchli/basic-ftp)
-- [Lucide Icons](https://lucide.dev/)
+- Email: 99400504@qq.com
 
 ---
 
-Made with ❤️ by [crispvibe](https://github.com/crispvibe)
+Made by [crispvibe](https://github.com/crispvibe)
