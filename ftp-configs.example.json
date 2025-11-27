@@ -1,0 +1,15 @@
+[
+  {
+    "id": "1234567890",
+    "name": "示例配置",
+    "localPath": "/path/to/local/directory",
+    "host": "ftp.example.com",
+    "port": 21,
+    "username": "your_username",
+    "password": "your_password",
+    "remotePath": "/public_html",
+    "secure": false,
+    "uploadNew": true,
+    "enabled": false
+  }
+]

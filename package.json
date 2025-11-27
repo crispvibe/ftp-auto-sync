@@ -1,0 +1,89 @@
+{
+  "name": "ftp-auto-sync",
+  "productName": "FTP",
+  "version": "1.0.0",
+  "description": "A modern cross-platform desktop app for monitoring directories and auto-uploading to multiple FTP servers",
+  "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/crispvibe/ftp-auto-sync.git"
+  },
+  "bugs": {
+    "url": "https://github.com/crispvibe/ftp-auto-sync/issues"
+  },
+  "homepage": "https://github.com/crispvibe/ftp-auto-sync#readme",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:all": "electron-builder --mac --win"
+  },
+  "keywords": [
+    "electron",
+    "ftp",
+    "ftps",
+    "file-monitor",
+    "file-sync",
+    "auto-upload",
+    "macos",
+    "windows",
+    "cross-platform",
+    "desktop-app"
+  ],
+  "author": "Your Name <your-email@example.com>",
+  "license": "MIT",
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "basic-ftp": "^5.0.3"
+  },
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.ftpautosync.app",
+    "productName": "FTP",
+    "mac": {
+      "category": "public.app-category.utilities",
+      "icon": "ftp.png",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "win": {
+      "icon": "ftp.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FTP"
+    },
+    "files": [
+      "**/*",
+      "!**/*.md",
+      "!.gitignore",
+      "!ftp-configs.json"
+    ]
+  }
+}

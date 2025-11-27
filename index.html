@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FTP Monitor - macOS</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      color: #e0e0e0;
+      height: 100vh;
+      overflow: hidden;
+      -webkit-app-region: drag;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      padding-top: 40px;
+      -webkit-app-region: no-drag;
+    }
+
+    .sidebar {
+      width: 320px;
+      background: rgba(30, 30, 30, 0.95);
+      border-right: 1px solid #404040;
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(10px);
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid #404040;
+    }
+
+    .sidebar-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-header h2 svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .add-btn {
+      width: 100%;
+      padding: 12px;
+      background: #3f3f3f;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .add-btn:hover {
+      background: #4f4f4f;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .config-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    .sidebar-footer {
+      padding: 15px 20px;
+      border-top: 1px solid #404040;
+      background: rgba(25, 25, 25, 0.95);
+    }
+
+    .github-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 15px;
+      background: rgba(50, 50, 50, 0.6);
+      border: 1px solid #404040;
+      border-radius: 8px;
+      color: #e0e0e0;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .github-link:hover {
+      background: rgba(60, 60, 60, 0.8);
+      border-color: #505050;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .github-link svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .github-link .github-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+    }
+
+    .github-link .github-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .github-link .github-subtitle {
+      font-size: 11px;
+      color: #999;
+    }
+
+    .config-item {
+      background: rgba(50, 50, 50, 0.6);
+      border: 1px solid #404040;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 10px;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .config-item:hover {
+      background: rgba(60, 60, 60, 0.8);
+    }
+
+    .config-item.active {
+      background: rgba(60, 60, 60, 0.8);
+    }
+
+    .config-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .config-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #fff;
+    }
+
+    .config-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+    }
+
+    .status-dot.active {
+      background: #4ade80;
+      box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+    }
+
+    .config-info {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .config-info svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .config-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .btn-small {
+      flex: 1;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn-toggle {
+      background: #3a3a3a;
+      color: #e0e0e0;
+      border: 1px solid #4a4a4a;
+    }
+
+    .btn-toggle:hover {
+      background: #454545;
+      border-color: #5a5a5a;
+    }
+
+    .btn-toggle.disabled {
+      background: #6b7280;
+    }
+
+    .btn-toggle.disabled:hover {
+      background: #4b5563;
+    }
+
+    .btn-test-config {
+      background: #3a3a3a;
+      color: #e0e0e0;
+      border: 1px solid #4a4a4a;
+    }
+
+    .btn-test-config:hover {
+      background: #454545;
+      border-color: #5a5a5a;
+    }
+
+    .btn-test-config:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .btn-edit {
+      background: #3a3a3a;
+      color: #e0e0e0;
+      border: 1px solid #4a4a4a;
+    }
+
+    .btn-edit:hover {
+      background: #454545;
+      border-color: #5a5a5a;
+    }
+
+    .btn-delete {
+      background: #3a3a3a;
+      color: #e0e0e0;
+      border: 1px solid #4a4a4a;
+    }
+
+    .btn-delete:hover {
+      background: #454545;
+      border-color: #5a5a5a;
+    }
+
+    .btn-small:hover {
+      transform: translateY(-1px);
+      opacity: 0.9;
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: rgba(20, 20, 20, 0.8);
+    }
+
+    .logs-container {
+      flex: 1;
+      overflow: hidden;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .log-group {
+      flex: 1;
+      background: #0a0a0a;
+      border-radius: 0;
+      border: none;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .log-group-header {
+      font-weight: 500;
+      font-size: 13px;
+      color: #888;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 15px;
+      border-bottom: 1px solid #2a2a2a;
+      flex-shrink: 0;
+    }
+
+    .log-group-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .log-group-header svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .log-copy-btn {
+      padding: 3px 10px;
+      background: transparent;
+      color: #666;
+      border: 1px solid #333;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 400;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .log-copy-btn:hover {
+      background: #1a1a1a;
+      color: #999;
+      border-color: #444;
+    }
+
+    .log-copy-btn svg {
+      width: 11px;
+      height: 11px;
+    }
+
+    .log-entries {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 12px;
+    }
+
+    .log-entries::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .log-entries::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .log-entries::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 3px;
+    }
+
+    .log-entries::-webkit-scrollbar-thumb:hover {
+      background: #444;
+    }
+
+    .log-entry {
+      padding: 2px 0;
+      margin-bottom: 1px;
+      font-size: 11px;
+      font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+      display: flex;
+      gap: 10px;
+      line-height: 1.4;
+    }
+
+    .log-time {
+      color: #555;
+      min-width: 70px;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .log-message {
+      flex: 1;
+      word-break: break-word;
+      color: #aaa;
+    }
+
+    .log-entry.info .log-message {
+      color: #6b9bd1;
+    }
+
+    .log-entry.success .log-message {
+      color: #5fb878;
+    }
+
+    .log-entry.error .log-message {
+      color: #d85656;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #2d2d2d;
+      border-radius: 12px;
+      padding: 30px;
+      width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+      border: 1px solid #404040;
+    }
+
+    .modal-header {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #fff;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #ccc;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid #404040;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .form-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .form-row .form-group {
+      flex: 1;
+    }
+
+    .directory-input {
+      display: flex;
+      gap: 10px;
+    }
+
+    .directory-input input {
+      flex: 1;
+    }
+
+    .browse-btn {
+      padding: 10px 20px;
+      background: #6b7280;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .browse-btn:hover {
+      background: #4b5563;
+    }
+
+    .password-input {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .password-input input {
+      flex: 1;
+      padding-right: 40px;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 10px;
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      padding: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+    }
+
+    .password-toggle:hover {
+      color: #ccc;
+    }
+
+    .password-toggle svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 25px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #4a5568;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5a6578;
+    }
+
+    .btn-secondary {
+      background: #6b7280;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #4b5563;
+    }
+
+    .btn-test {
+      background: #4a5568;
+      color: white;
+    }
+
+    .btn-test:hover {
+      background: #5a6578;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+    }
+
+    .empty-state-icon {
+      margin-bottom: 20px;
+      color: #4b5563;
+      display: flex;
+      justify-content: center;
+    }
+
+    .empty-state-icon svg {
+      width: 48px;
+      height: 48px;
+      opacity: 0.5;
+    }
+
+    .empty-state-text {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .empty-state-subtext {
+      font-size: 13px;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(102, 126, 234, 0.5);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(102, 126, 234, 0.7);
+    }
+
+    /* 自定义通知弹窗 */
+    .toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      background: #2d2d2d;
+      border: 1px solid #404040;
+      border-radius: 12px;
+      padding: 24px 30px;
+      min-width: 320px;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      z-index: 2000;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+      pointer-events: auto;
+    }
+
+    .toast-content {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+    }
+
+    .toast-icon {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .toast-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .toast.success .toast-icon {
+      color: #5fb878;
+    }
+
+    .toast.error .toast-icon {
+      color: #d85656;
+    }
+
+    .toast.info .toast-icon {
+      color: #6b9bd1;
+    }
+
+    .toast-body {
+      flex: 1;
+    }
+
+    .toast-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .toast-message {
+      font-size: 13px;
+      color: #aaa;
+      line-height: 1.5;
+    }
+
+    .toast-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(2px);
+      z-index: 1999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .toast-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* 自定义确认对话框 */
+    .confirm-dialog {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      background: #2d2d2d;
+      border: 1px solid #404040;
+      border-radius: 12px;
+      padding: 24px;
+      min-width: 360px;
+      max-width: 440px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      z-index: 2001;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .confirm-dialog.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+      pointer-events: auto;
+    }
+
+    .confirm-content {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .confirm-icon {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #f59e0b;
+    }
+
+    .confirm-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .confirm-body {
+      flex: 1;
+    }
+
+    .confirm-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .confirm-message {
+      font-size: 14px;
+      color: #aaa;
+      line-height: 1.5;
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .confirm-actions .btn {
+      flex: 0 0 auto;
+      min-width: 80px;
+      padding: 10px 20px;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    .confirm-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(3px);
+      z-index: 2000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .confirm-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>
+          <i data-lucide="server"></i>
+          FTP 配置
+        </h2>
+        <button class="add-btn" onclick="showAddModal()">+ 添加新配置</button>
+      </div>
+      <div class="config-list" id="configList"></div>
+      <div class="sidebar-footer">
+        <a href="#" class="github-link" onclick="openGitHub(event)">
+          <i data-lucide="github"></i>
+          <div class="github-text">
+            <span class="github-title">开源项目</span>
+            <span class="github-subtitle">Star on GitHub</span>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <div class="logs-container" id="logsContainer">
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <i data-lucide="file-text"></i>
+          </div>
+          <div class="empty-state-text">实时日志</div>
+          <div class="empty-state-subtext">文件变化和上传状态将显示在这里</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="configModal">
+    <div class="modal-content">
+      <div class="modal-header" id="modalTitle">添加 FTP 配置</div>
+      <form id="configForm">
+        <div class="form-group">
+          <label class="form-label">配置名称</label>
+          <input type="text" class="form-input" id="configName" placeholder="例如: 生产服务器" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">本地监控目录</label>
+          <div class="directory-input">
+            <input type="text" class="form-input" id="localPath" placeholder="输入或选择要监控的目录" required>
+            <button type="button" class="browse-btn" onclick="selectDirectory()">浏览</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">FTP 主机</label>
+            <input type="text" class="form-input" id="ftpHost" placeholder="ftp.example.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">端口</label>
+            <input type="number" class="form-input" id="ftpPort" placeholder="21" value="21" min="1" max="65535">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">用户名</label>
+            <input type="text" class="form-input" id="ftpUsername" placeholder="username" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">密码</label>
+            <div class="password-input">
+              <input type="password" class="form-input" id="ftpPassword" placeholder="password" required>
+              <button type="button" class="password-toggle" onclick="togglePassword()">
+                <i data-lucide="eye" id="passwordIcon"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">远程目录</label>
+          <input type="text" class="form-input" id="remotePath" placeholder="/public_html" value="/">
+        </div>
+
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="secureConnection">
+            <label class="form-label" style="margin: 0;">使用安全连接 (FTPS)</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="uploadNew" checked>
+            <label class="form-label" style="margin: 0;">上传新文件（不仅仅是修改的文件）</label>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-test" onclick="testConnection(event)">测试连接</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 自定义通知弹窗 -->
+  <div class="toast-overlay" id="toastOverlay"></div>
+  <div class="toast" id="toast">
+    <div class="toast-content">
+      <div class="toast-icon" id="toastIcon"></div>
+      <div class="toast-body">
+        <div class="toast-title" id="toastTitle"></div>
+        <div class="toast-message" id="toastMessage"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自定义确认对话框 -->
+  <div class="confirm-overlay" id="confirmOverlay"></div>
+  <div class="confirm-dialog" id="confirmDialog">
+    <div class="confirm-content">
+      <div class="confirm-icon">
+        <i data-lucide="alert-circle"></i>
+      </div>
+      <div class="confirm-body">
+        <div class="confirm-title" id="confirmTitle">确认操作</div>
+        <div class="confirm-message" id="confirmMessage">确定要执行此操作吗？</div>
+      </div>
+    </div>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary" id="confirmCancel">取消</button>
+      <button class="btn btn-danger" id="confirmOk">确定</button>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Toggle password visibility
+    function togglePassword() {
+      const passwordInput = document.getElementById('ftpPassword');
+      const passwordIcon = document.getElementById('passwordIcon');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        passwordIcon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        passwordInput.type = 'password';
+        passwordIcon.setAttribute('data-lucide', 'eye');
+      }
+      
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>
