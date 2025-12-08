@@ -1,0 +1,2355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FTP Monitor - macOS</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- CodeMirror 代码编辑器 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <!-- 语言模式 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/php/php.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      color: #e0e0e0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      padding-top: 40px;
+    }
+
+    /* 标题栏拖拽区域 */
+    .titlebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      -webkit-app-region: drag;
+      z-index: 9000;
+      pointer-events: auto;
+    }
+
+    .titlebar-buttons {
+      position: absolute;
+      left: 80px;
+      top: 0;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      -webkit-app-region: no-drag;
+    }
+
+    /* Windows 窗口控制按钮 */
+    .window-controls {
+      position: absolute;
+      right: 0;
+      top: 0;
+      height: 40px;
+      display: none;
+      -webkit-app-region: no-drag;
+    }
+
+    .window-controls.show {
+      display: flex;
+    }
+
+    .window-control-btn {
+      width: 46px;
+      height: 40px;
+      border: none;
+      background: transparent;
+      color: #999;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .window-control-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .window-control-btn.close:hover {
+      background: #e81123;
+      color: #fff;
+    }
+
+    .window-control-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .sidebar {
+      width: 320px;
+      min-width: 200px;
+      max-width: 500px;
+      background: rgba(30, 30, 30, 0.95);
+      border-right: 1px solid #404040;
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(10px);
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    /* 侧边栏拖拽条 */
+    .sidebar-resizer {
+      position: absolute;
+      top: 0;
+      right: -3px;
+      width: 6px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 10;
+      background: transparent;
+    }
+
+    .sidebar-resizer:hover,
+    .sidebar-resizer.dragging {
+      background: rgba(74, 144, 226, 0.5);
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid #404040;
+    }
+
+    .sidebar-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-header h2 svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .add-btn {
+      width: 100%;
+      padding: 12px;
+      background: #3f3f3f;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .add-btn:hover {
+      background: #4f4f4f;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .config-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    .sidebar-footer {
+      padding: 15px 20px;
+      border-top: 1px solid #404040;
+      background: rgba(25, 25, 25, 0.95);
+    }
+
+    .copyright {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 11px;
+      color: #555;
+    }
+
+    .copyright a {
+      color: #6b9bd1;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .copyright a:hover {
+      color: #8bb8e8;
+    }
+
+    .github-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 15px;
+      background: rgba(50, 50, 50, 0.6);
+      border: 1px solid #404040;
+      border-radius: 8px;
+      color: #e0e0e0;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .github-link:hover {
+      background: rgba(60, 60, 60, 0.8);
+      border-color: #505050;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .github-link svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .github-link .github-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+    }
+
+    .github-link .github-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .github-link .github-subtitle {
+      font-size: 11px;
+      color: #999;
+    }
+
+    .config-item {
+      background: rgba(50, 50, 50, 0.6);
+      border: 1px solid #404040;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 10px;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .config-item:hover {
+      background: rgba(60, 60, 60, 0.8);
+    }
+
+    .config-item.active {
+      background: rgba(60, 60, 60, 0.8);
+    }
+
+    .config-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .config-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #fff;
+    }
+
+    .config-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+    }
+
+    .status-dot.active {
+      background: #4ade80;
+      box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+    }
+
+    .status-dot.connected {
+      background: #60a5fa;
+      box-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+    }
+
+    .config-info {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .config-info svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .config-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .btn-small {
+      flex: 1;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn-toggle {
+      background: #3a3a3a;
+      color: #e0e0e0;
+      border: 1px solid #4a4a4a;
+    }
+
+    .btn-toggle:hover {
+      background: #454545;
+      border-color: #5a5a5a;
+    }
+
+    .btn-toggle.disabled {
+      background: #6b7280;
+    }
+
+    .btn-toggle.disabled:hover {
+      background: #4b5563;
+    }
+
+    .btn-test-config {
+      background: #3a3a3a;
+      color: #e0e0e0;
+      border: 1px solid #4a4a4a;
+    }
+
+    .btn-test-config:hover {
+      background: #454545;
+      border-color: #5a5a5a;
+    }
+
+    .btn-test-config:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .btn-test-config.connected {
+      background: #3b82f6;
+      border-color: #2563eb;
+      color: #fff;
+    }
+
+    .btn-test-config.connected:hover {
+      background: #2563eb;
+      border-color: #1d4ed8;
+    }
+
+    .btn-edit {
+      background: #3a3a3a;
+      color: #e0e0e0;
+      border: 1px solid #4a4a4a;
+    }
+
+    .btn-edit:hover {
+      background: #454545;
+      border-color: #5a5a5a;
+    }
+
+    .btn-delete {
+      background: #3a3a3a;
+      color: #e0e0e0;
+      border: 1px solid #4a4a4a;
+    }
+
+    .btn-delete:hover {
+      background: #454545;
+      border-color: #5a5a5a;
+    }
+
+    .btn-small:hover {
+      transform: translateY(-1px);
+      opacity: 0.9;
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: rgba(20, 20, 20, 0.8);
+      overflow: hidden;
+    }
+
+    /* 文件管理区 */
+    .file-manager {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+      min-height: 200px;
+    }
+
+    .file-manager-empty {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      font-size: 14px;
+    }
+
+    /* 可拖拽分隔条 */
+    .resizer-h {
+      width: 4px;
+      background: #1a1a1a;
+      cursor: col-resize;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    .resizer-h:hover,
+    .resizer-h.dragging {
+      background: #4a5568;
+    }
+
+    .resizer-v {
+      height: 4px;
+      background: #1a1a1a;
+      cursor: row-resize;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    .resizer-v:hover,
+    .resizer-v.dragging {
+      background: #4a5568;
+    }
+
+    /* 目录树 */
+    .file-tree {
+      width: 280px;
+      min-width: 150px;
+      max-width: 500px;
+      background: #0d0d0d;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .file-tree-header {
+      padding: 6px 8px;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .file-tree-nav {
+      display: flex;
+      gap: 2px;
+    }
+
+    .file-tree-nav-btn {
+      padding: 4px 6px;
+      background: transparent;
+      color: #666;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+    }
+
+    .file-tree-nav-btn:hover:not(:disabled) {
+      background: #1a1a1a;
+      color: #999;
+      border-color: #333;
+    }
+
+    .file-tree-nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .file-tree-nav-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .file-tree-path {
+      flex: 1;
+      font-size: 11px;
+      color: #888;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+    }
+
+    .file-tree-actions {
+      display: flex;
+      gap: 2px;
+    }
+
+    .file-tree-btn {
+      padding: 4px 6px;
+      background: transparent;
+      color: #666;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 10px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .file-tree-btn:hover {
+      background: #1a1a1a;
+      color: #999;
+      border-color: #333;
+    }
+
+    .file-tree-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .file-tree-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .file-tree-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .file-tree-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .file-tree-content::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 3px;
+    }
+
+    .tree-item {
+      display: flex;
+      align-items: center;
+      padding: 4px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      color: #ccc;
+      transition: background 0.15s;
+      user-select: none;
+    }
+
+    .tree-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tree-item.selected {
+      background: rgba(102, 126, 234, 0.2);
+    }
+
+    .tree-item.drag-over {
+      background: rgba(74, 222, 128, 0.2);
+      outline: 1px dashed #4ade80;
+    }
+
+    .tree-item-icon {
+      width: 16px;
+      height: 16px;
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+
+    .tree-item-icon svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .tree-item-icon.folder {
+      color: #f59e0b;
+    }
+
+    .tree-item-icon.file {
+      color: #6b9bd1;
+    }
+
+    .tree-item-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tree-item-size {
+      font-size: 10px;
+      color: #666;
+      margin-left: 8px;
+    }
+
+    .tree-indent {
+      width: 16px;
+      flex-shrink: 0;
+    }
+
+    .tree-toggle {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      flex-shrink: 0;
+    }
+
+    .tree-toggle svg {
+      width: 12px;
+      height: 12px;
+      transition: transform 0.15s;
+    }
+
+    .tree-toggle.expanded svg {
+      transform: rotate(90deg);
+    }
+
+    /* 文件编辑器 */
+    .file-editor {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #0a0a0a;
+    }
+
+    .file-editor-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .file-editor-title {
+      font-size: 12px;
+      color: #888;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .file-editor-title svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .file-editor-path {
+      color: #ccc;
+      font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+    }
+
+    .file-editor-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .file-editor-btn {
+      padding: 4px 10px;
+      background: #2a2a2a;
+      color: #ccc;
+      border: 1px solid #3a3a3a;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .file-editor-btn:hover {
+      background: #3a3a3a;
+      border-color: #4a4a4a;
+    }
+
+    .file-editor-btn.primary {
+      background: #4a5568;
+      border-color: #5a6578;
+    }
+
+    .file-editor-btn.primary:hover {
+      background: #5a6578;
+    }
+
+    .file-editor-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* 编辑器全屏模式 */
+    .file-editor.fullscreen {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999 !important;
+      border-radius: 0 !important;
+    }
+
+    .file-editor.fullscreen .file-editor-header {
+      padding: 12px 20px;
+    }
+
+    .file-editor.fullscreen .file-editor-content {
+      height: calc(100vh - 50px);
+    }
+
+    .file-editor-content {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .file-editor-textarea {
+      width: 100%;
+      height: 100%;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      border: none;
+      padding: 12px;
+      font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+    }
+
+    .file-editor-textarea:focus {
+      outline: none;
+    }
+
+    /* CodeMirror 编辑器样式 */
+    .CodeMirror {
+      height: 100%;
+      font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      background: #0a0a0a;
+    }
+
+    .CodeMirror-gutters {
+      background: #0d0d0d;
+      border-right: 1px solid #2a2a2a;
+    }
+
+    .CodeMirror-linenumber {
+      color: #555;
+    }
+
+    .CodeMirror-cursor {
+      border-left: 2px solid #fff;
+    }
+
+    .CodeMirror-selected {
+      background: rgba(102, 126, 234, 0.3) !important;
+    }
+
+    .CodeMirror-focused .CodeMirror-selected {
+      background: rgba(102, 126, 234, 0.4) !important;
+    }
+
+    .cm-s-material-darker.CodeMirror {
+      background: #0a0a0a;
+    }
+
+    .cm-s-material-darker .CodeMirror-gutters {
+      background: #0d0d0d;
+    }
+
+    .file-editor-empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      gap: 10px;
+    }
+
+    .file-editor-empty svg {
+      width: 48px;
+      height: 48px;
+      opacity: 0.3;
+    }
+
+    .file-editor-drop-zone {
+      border: 2px dashed #333;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      margin: 20px;
+      transition: all 0.2s;
+    }
+
+    .file-editor-drop-zone.drag-over {
+      border-color: #4ade80;
+      background: rgba(74, 222, 128, 0.1);
+    }
+
+    /* 分隔条 */
+    .resizer {
+      height: 4px;
+      background: #1a1a1a;
+      cursor: ns-resize;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    .resizer:hover {
+      background: #333;
+    }
+
+    .resizer-h {
+      width: 4px;
+      height: 100%;
+      background: #1a1a1a;
+      cursor: ew-resize;
+      flex-shrink: 0;
+    }
+
+    .resizer-h:hover {
+      background: #333;
+    }
+
+    /* 日志区（可折叠） */
+    .logs-container {
+      height: 200px;
+      min-height: 40px;
+      max-height: 50vh;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: height 0.3s;
+    }
+
+    .logs-container.collapsed {
+      height: 40px;
+    }
+
+    .log-group {
+      flex: 1;
+      background: #0a0a0a;
+      border-radius: 0;
+      border: none;
+      display: flex;
+      flex-direction: column;
+      min-height: 0; /* 重要：允许 flex 子元素收缩 */
+      overflow: hidden;
+    }
+
+    .log-group-header {
+      font-weight: 500;
+      font-size: 13px;
+      color: #888;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 15px;
+      border-bottom: 1px solid #2a2a2a;
+      flex-shrink: 0;
+    }
+
+    .log-group-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .log-group-header svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .log-copy-btn {
+      padding: 3px 10px;
+      background: transparent;
+      color: #666;
+      border: 1px solid #333;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 400;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .log-copy-btn:hover {
+      background: #1a1a1a;
+      color: #999;
+      border-color: #444;
+    }
+
+    .log-copy-btn svg {
+      width: 11px;
+      height: 11px;
+    }
+
+    .log-entries {
+      flex: 1;
+      overflow-y: scroll;
+      overflow-x: hidden;
+      padding: 4px 10px;
+      min-height: 0;
+    }
+
+    .log-entries::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .log-entries::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .log-entries::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 3px;
+    }
+
+    .log-entries::-webkit-scrollbar-thumb:hover {
+      background: #444;
+    }
+
+    .log-entry {
+      padding: 2px 0;
+      margin-bottom: 0;
+      font-size: 10px;
+      font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+      display: flex;
+      gap: 8px;
+      line-height: 1.4;
+      flex-shrink: 0;
+    }
+
+    .log-time {
+      color: #555;
+      min-width: 55px;
+      font-size: 9px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .log-message {
+      flex: 1;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      color: #aaa;
+      font-size: 10px;
+      min-width: 0; /* 允许文本收缩换行 */
+    }
+
+    .log-entry.info .log-message {
+      color: #6b9bd1;
+    }
+
+    .log-entry.success .log-message {
+      color: #5fb878;
+    }
+
+    .log-entry.error .log-message {
+      color: #d85656;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #2d2d2d;
+      border-radius: 12px;
+      padding: 30px;
+      width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+      border: 1px solid #404040;
+    }
+
+    .modal-header {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #fff;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #ccc;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid #404040;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .form-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .form-row .form-group {
+      flex: 1;
+    }
+
+    .directory-input {
+      display: flex;
+      gap: 10px;
+    }
+
+    .directory-input input {
+      flex: 1;
+    }
+
+    .browse-btn {
+      padding: 10px 20px;
+      background: #6b7280;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .browse-btn:hover {
+      background: #4b5563;
+    }
+
+    .password-input {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .password-input input {
+      flex: 1;
+      padding-right: 40px;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 10px;
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      padding: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+    }
+
+    .password-toggle:hover {
+      color: #ccc;
+    }
+
+    .password-toggle svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    /* 排除文件夹样式 */
+    .exclude-folders-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 8px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .exclude-folder-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .exclude-folder-item input {
+      flex: 1;
+      padding: 8px 10px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 13px;
+    }
+
+    .exclude-folder-item input:focus {
+      outline: none;
+      border-color: #4a5568;
+    }
+
+    .btn-browse-exclude {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #aaa;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .btn-browse-exclude:hover {
+      background: #333;
+      border-color: #555;
+      color: #ccc;
+    }
+
+    .btn-remove-exclude {
+      background: transparent;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-remove-exclude:hover {
+      background: #333;
+      color: #ff6b6b;
+    }
+
+    .btn-remove-exclude svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .btn-add-exclude {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px dashed #444;
+      color: #888;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+
+    .btn-add-exclude:hover {
+      border-color: #666;
+      color: #aaa;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .btn-add-exclude svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .form-hint {
+      font-size: 11px;
+      color: #666;
+      margin-top: 6px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 25px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #4a5568;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5a6578;
+    }
+
+    .btn-secondary {
+      background: #6b7280;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #4b5563;
+    }
+
+    .btn-test {
+      background: #4a5568;
+      color: white;
+    }
+
+    .btn-test:hover {
+      background: #5a6578;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+    }
+
+    .empty-state-icon {
+      margin-bottom: 20px;
+      color: #4b5563;
+      display: flex;
+      justify-content: center;
+    }
+
+    .empty-state-icon svg {
+      width: 48px;
+      height: 48px;
+      opacity: 0.5;
+    }
+
+    .empty-state-text {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .empty-state-subtext {
+      font-size: 13px;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(102, 126, 234, 0.5);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(102, 126, 234, 0.7);
+    }
+
+    /* 自定义通知弹窗 */
+    .toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      background: #2d2d2d;
+      border: 1px solid #404040;
+      border-radius: 12px;
+      padding: 24px 30px;
+      min-width: 320px;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      z-index: 2000;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+      pointer-events: auto;
+    }
+
+    .toast-content {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+    }
+
+    .toast-icon {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .toast-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .toast.success .toast-icon {
+      color: #5fb878;
+    }
+
+    .toast.error .toast-icon {
+      color: #d85656;
+    }
+
+    .toast.info .toast-icon {
+      color: #6b9bd1;
+    }
+
+    .toast-body {
+      flex: 1;
+    }
+
+    .toast-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .toast-message {
+      font-size: 13px;
+      color: #aaa;
+      line-height: 1.5;
+    }
+
+    .toast-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(2px);
+      z-index: 1999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .toast-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* 自定义确认对话框 */
+    .confirm-dialog {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      background: #2d2d2d;
+      border: 1px solid #404040;
+      border-radius: 12px;
+      padding: 24px;
+      min-width: 360px;
+      max-width: 440px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      z-index: 2001;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .confirm-dialog.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+      pointer-events: auto;
+    }
+
+    .confirm-content {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .confirm-icon {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #f59e0b;
+    }
+
+    .confirm-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .confirm-body {
+      flex: 1;
+    }
+
+    .confirm-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .confirm-message {
+      font-size: 14px;
+      color: #aaa;
+      line-height: 1.5;
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .confirm-actions .btn {
+      flex: 0 0 auto;
+      min-width: 80px;
+      padding: 10px 20px;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    .confirm-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(3px);
+      z-index: 2000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .confirm-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* 右键菜单 */
+    .context-menu {
+      position: fixed;
+      background: #2d2d2d;
+      border: 1px solid #404040;
+      border-radius: 6px;
+      padding: 4px 0;
+      min-width: 160px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      z-index: 3000;
+      display: none;
+    }
+
+    .context-menu.show {
+      display: block;
+    }
+
+    .context-menu-item {
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #ccc;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.15s;
+    }
+
+    .context-menu-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .context-menu-item.danger {
+      color: #ef4444;
+    }
+
+    .context-menu-item.danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    .context-menu-item svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .context-menu-shortcut {
+      margin-left: auto;
+      font-size: 10px;
+      color: #666;
+      padding-left: 20px;
+    }
+
+    .context-menu-item.disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .context-menu-divider {
+      height: 1px;
+      background: #404040;
+      margin: 4px 0;
+    }
+
+    /* 上传进度条 */
+    .upload-progress {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #2d2d2d;
+      border: 1px solid #404040;
+      border-radius: 8px;
+      padding: 12px 16px;
+      min-width: 280px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      z-index: 2500;
+      display: none;
+    }
+
+    .upload-progress.show {
+      display: block;
+    }
+
+    .upload-progress-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .upload-progress-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: #ccc;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .upload-progress-title svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .upload-progress-close {
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      padding: 2px;
+    }
+
+    .upload-progress-close:hover {
+      color: #999;
+    }
+
+    .upload-progress-bar {
+      height: 4px;
+      background: #1a1a1a;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .upload-progress-fill {
+      height: 100%;
+      background: #4ade80;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    .upload-progress-text {
+      font-size: 11px;
+      color: #888;
+      margin-top: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* 传输进度悬浮窗 */
+    .transfer-panel {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      max-height: 400px;
+      background: rgba(20, 20, 20, 0.95);
+      border: 1px solid #333;
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      display: none;
+      flex-direction: column;
+      backdrop-filter: blur(10px);
+      overflow: hidden;
+    }
+
+    .transfer-panel.show {
+      display: flex;
+    }
+
+    .transfer-panel.minimized {
+      height: auto;
+      max-height: none;
+    }
+
+    .transfer-panel-header {
+      padding: 12px 15px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #333;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .transfer-panel-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #ccc;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .transfer-panel-title svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .transfer-panel-badge {
+      background: #4a5568;
+      color: #fff;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 6px;
+    }
+
+    .transfer-panel-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .transfer-panel-btn {
+      background: transparent;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .transfer-panel-btn:hover {
+      background: #333;
+      color: #999;
+    }
+
+    .transfer-panel-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .transfer-panel-content {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 300px;
+    }
+
+    .transfer-panel-content::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .transfer-panel-content::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 3px;
+    }
+
+    .transfer-item {
+      padding: 10px 15px;
+      border-bottom: 1px solid #252525;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .transfer-item:last-child {
+      border-bottom: none;
+    }
+
+    .transfer-item-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .transfer-item-name {
+      font-size: 12px;
+      color: #ccc;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .transfer-item-name svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .transfer-item-name.upload svg {
+      color: #4ade80;
+    }
+
+    .transfer-item-name.download svg {
+      color: #60a5fa;
+    }
+
+    .transfer-item-status {
+      font-size: 10px;
+      color: #888;
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+
+    .transfer-item-status.success {
+      color: #4ade80;
+    }
+
+    .transfer-item-status.error {
+      color: #f87171;
+    }
+
+    .transfer-item-progress {
+      height: 3px;
+      background: #252525;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .transfer-item-progress-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.2s;
+    }
+
+    .transfer-item-progress-fill.upload {
+      background: #4ade80;
+    }
+
+    .transfer-item-progress-fill.download {
+      background: #60a5fa;
+    }
+
+    .transfer-item-time {
+      display: flex;
+      gap: 4px;
+      font-size: 10px;
+      color: #555;
+      font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+    }
+
+    .transfer-item-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #666;
+    }
+
+    .transfer-panel-empty {
+      padding: 30px;
+      text-align: center;
+      color: #555;
+      font-size: 12px;
+    }
+
+    .transfer-panel-empty svg {
+      width: 32px;
+      height: 32px;
+      margin-bottom: 10px;
+      opacity: 0.3;
+    }
+
+    /* 悬浮按钮（面板关闭时显示） */
+    .transfer-fab {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      background: rgba(30, 30, 30, 0.95);
+      border: 1px solid #333;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 999;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      transition: all 0.2s;
+    }
+
+    .transfer-fab:hover {
+      background: #2a2a2a;
+      transform: scale(1.05);
+    }
+
+    .transfer-fab.show {
+      display: flex;
+    }
+
+    .transfer-fab svg {
+      width: 22px;
+      height: 22px;
+      color: #888;
+    }
+
+    .transfer-fab-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: #4ade80;
+      color: #000;
+      font-size: 10px;
+      font-weight: 600;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+
+    .transfer-fab-badge.downloading {
+      background: #60a5fa;
+    }
+  </style>
+</head>
+<body>
+  <!-- 标题栏拖拽区域 -->
+  <div class="titlebar">
+    <!-- Windows 窗口控制按钮 -->
+    <div class="window-controls" id="windowControls">
+      <button class="window-control-btn" onclick="minimizeWindow()" title="最小化">
+        <i data-lucide="minus"></i>
+      </button>
+      <button class="window-control-btn" onclick="maximizeWindow()" title="最大化">
+        <i data-lucide="square" id="maximizeIcon"></i>
+      </button>
+      <button class="window-control-btn close" onclick="closeWindow()" title="关闭">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+  </div>
+  
+  <div class="container">
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2>
+          <i data-lucide="server"></i>
+          FTP 配置
+        </h2>
+        <button class="add-btn" onclick="showAddModal()">+ 添加新配置</button>
+      </div>
+      <div class="config-list" id="configList"></div>
+      <div class="sidebar-footer">
+        <a href="#" class="github-link" onclick="openGitHub(event)">
+          <i data-lucide="github"></i>
+          <div class="github-text">
+            <span class="github-title">开源项目</span>
+            <span class="github-subtitle">Star on GitHub</span>
+          </div>
+        </a>
+        <div class="copyright">
+          <span>Developed by <a href="https://www.94v.cn" onclick="event.preventDefault(); require('electron').shell.openExternal('https://www.94v.cn')">www.94v.cn</a></span>
+        </div>
+      </div>
+      <div class="sidebar-resizer" id="sidebarResizer"></div>
+    </div>
+
+    <div class="main-content">
+      <!-- 文件管理区 -->
+      <div class="file-manager" id="fileManager">
+        <div class="file-manager-empty" id="fileManagerEmpty">
+          <div class="empty-state">
+            <div class="empty-state-icon">
+              <i data-lucide="folder-open"></i>
+            </div>
+            <div class="empty-state-text">FTP 文件管理</div>
+            <div class="empty-state-subtext">选择左侧配置后可浏览和管理远程文件</div>
+          </div>
+        </div>
+        <!-- 目录树 -->
+        <div class="file-tree" id="fileTree" style="display: none;">
+          <div class="file-tree-header">
+            <div class="file-tree-nav">
+              <button class="file-tree-nav-btn" onclick="navigateBack()" title="后退" id="navBackBtn" disabled>
+                <i data-lucide="chevron-left"></i>
+              </button>
+              <button class="file-tree-nav-btn" onclick="navigateForward()" title="前进" id="navForwardBtn" disabled>
+                <i data-lucide="chevron-right"></i>
+              </button>
+              <button class="file-tree-nav-btn" onclick="navigateUp()" title="上级目录" id="navUpBtn">
+                <i data-lucide="arrow-up"></i>
+              </button>
+            </div>
+            <div class="file-tree-path" id="currentPathDisplay" title="/">/</div>
+            <div class="file-tree-actions">
+              <button class="file-tree-btn" onclick="createRemoteDir()" title="新建文件夹">
+                <i data-lucide="folder-plus"></i>
+              </button>
+              <button class="file-tree-btn" onclick="refreshFileTree()" title="刷新">
+                <i data-lucide="refresh-cw"></i>
+              </button>
+            </div>
+          </div>
+          <div class="file-tree-content" id="fileTreeContent"></div>
+        </div>
+        <!-- 文件树和编辑器之间的分隔条 -->
+        <div class="resizer-h" id="treeEditorResizer"></div>
+        <!-- 文件编辑器 -->
+        <div class="file-editor" id="fileEditor" style="display: none;">
+          <div class="file-editor-header">
+            <div class="file-editor-title">
+              <i data-lucide="file-code"></i>
+              <span class="file-editor-path" id="editorFilePath">未选择文件</span>
+            </div>
+            <div class="file-editor-actions">
+              <button class="file-editor-btn" onclick="toggleEditorFullscreen()" title="全屏 (F11)" id="fullscreenBtn">
+                <i data-lucide="maximize-2" id="fullscreenIcon"></i>
+              </button>
+              <button class="file-editor-btn" onclick="downloadCurrentFile()" title="下载">
+                <i data-lucide="download"></i>
+                <span>下载</span>
+              </button>
+              <button class="file-editor-btn" onclick="deleteCurrentFile()" title="删除">
+                <i data-lucide="trash-2"></i>
+                <span>删除</span>
+              </button>
+              <button class="file-editor-btn primary" onclick="saveCurrentFile()" title="保存 (Ctrl+S)">
+                <i data-lucide="save"></i>
+                <span>保存</span>
+              </button>
+            </div>
+          </div>
+          <div class="file-editor-content" id="editorContainer">
+            <textarea id="editorTextarea"></textarea>
+          </div>
+        </div>
+        <!-- 空状态/拖拽区 -->
+        <div class="file-editor" id="fileEditorEmpty" style="display: none;">
+          <div class="file-editor-empty">
+            <i data-lucide="file-text"></i>
+            <div>选择文件进行编辑</div>
+            <div class="file-editor-drop-zone" id="uploadDropZone">
+              <i data-lucide="upload-cloud"></i>
+              <div style="margin-top: 10px;">拖拽文件到此处上传</div>
+              <div style="font-size: 11px; color: #555; margin-top: 5px;">或点击选择文件</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 日志区分隔条 -->
+      <div class="resizer-v" id="logsResizer"></div>
+
+      <!-- 日志区（可折叠） -->
+      <div class="logs-container" id="logsContainer">
+        <div class="log-group">
+          <div class="log-group-header">
+            <div class="log-group-header-left">
+              <i data-lucide="activity"></i>
+              <span>实时日志</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="log-copy-btn" onclick="clearCurrentLogs(event)">
+                <i data-lucide="trash-2"></i>
+                <span>清除</span>
+              </button>
+              <button class="log-copy-btn" onclick="copyCurrentLogs(event)">
+                <i data-lucide="copy"></i>
+                <span>复制</span>
+              </button>
+              <button class="log-copy-btn" onclick="toggleLogs()" id="logsToggleBtn">
+                <i data-lucide="chevron-down"></i>
+                <span>折叠</span>
+              </button>
+            </div>
+          </div>
+          <div class="log-entries" id="logEntries">
+            <div style="padding: 20px; text-align: center; color: #666;">暂无日志</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="configModal">
+    <div class="modal-content">
+      <div class="modal-header" id="modalTitle">添加 FTP 配置</div>
+      <form id="configForm">
+        <div class="form-group">
+          <label class="form-label">配置名称</label>
+          <input type="text" class="form-input" id="configName" placeholder="例如: 生产服务器" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">本地监控目录</label>
+          <div class="directory-input">
+            <input type="text" class="form-input" id="localPath" placeholder="输入或选择要监控的目录" required>
+            <button type="button" class="browse-btn" onclick="selectDirectory()">浏览</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">FTP 主机</label>
+            <input type="text" class="form-input" id="ftpHost" placeholder="ftp.example.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">端口</label>
+            <input type="number" class="form-input" id="ftpPort" placeholder="21" value="21" min="1" max="65535">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">用户名</label>
+            <input type="text" class="form-input" id="ftpUsername" placeholder="username" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">密码</label>
+            <div class="password-input">
+              <input type="password" class="form-input" id="ftpPassword" placeholder="password" required>
+              <button type="button" class="password-toggle" onclick="togglePassword()">
+                <i data-lucide="eye" id="passwordIcon"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">远程目录</label>
+          <input type="text" class="form-input" id="remotePath" placeholder="/public_html" value="/">
+        </div>
+
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="secureConnection">
+            <label class="form-label" style="margin: 0;">使用安全连接 (FTPS)</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="uploadNew" checked>
+            <label class="form-label" style="margin: 0;">上传新文件（不仅仅是修改的文件）</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">排除文件夹（不监控/不上传）</label>
+          <div class="exclude-folders-container" id="excludeFoldersContainer">
+            <!-- 动态添加的排除文件夹项 -->
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button type="button" class="btn-add-exclude" onclick="addExcludeFolder()">
+              <i data-lucide="plus"></i>
+              <span>手动输入</span>
+            </button>
+            <button type="button" class="btn-add-exclude" onclick="selectExcludeFolders()">
+              <i data-lucide="folder-open"></i>
+              <span>选择文件夹</span>
+            </button>
+          </div>
+          <div class="form-hint">支持相对路径（如 node_modules）或绝对路径，可多选</div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-test" onclick="testConnection(event)">测试连接</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 自定义通知弹窗 -->
+  <div class="toast-overlay" id="toastOverlay"></div>
+  <div class="toast" id="toast">
+    <div class="toast-content">
+      <div class="toast-icon" id="toastIcon"></div>
+      <div class="toast-body">
+        <div class="toast-title" id="toastTitle"></div>
+        <div class="toast-message" id="toastMessage"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自定义确认对话框 -->
+  <div class="confirm-overlay" id="confirmOverlay"></div>
+  <div class="confirm-dialog" id="confirmDialog">
+    <div class="confirm-content">
+      <div class="confirm-icon">
+        <i data-lucide="alert-circle"></i>
+      </div>
+      <div class="confirm-body">
+        <div class="confirm-title" id="confirmTitle">确认操作</div>
+        <div class="confirm-message" id="confirmMessage">确定要执行此操作吗？</div>
+      </div>
+    </div>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary" id="confirmCancel">取消</button>
+      <button class="btn btn-danger" id="confirmOk">确定</button>
+    </div>
+  </div>
+
+  <!-- 右键菜单 -->
+  <div class="context-menu" id="contextMenu">
+    <div class="context-menu-item" onclick="contextMenuAction('open')">
+      <i data-lucide="file-text"></i>
+      <span>打开</span>
+    </div>
+    <div class="context-menu-item" onclick="contextMenuAction('download')">
+      <i data-lucide="download"></i>
+      <span>下载</span>
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" onclick="contextMenuAction('copy')">
+      <i data-lucide="copy"></i>
+      <span>复制</span>
+      <span class="context-menu-shortcut">Ctrl+C</span>
+    </div>
+    <div class="context-menu-item" onclick="contextMenuAction('cut')">
+      <i data-lucide="scissors"></i>
+      <span>剪切</span>
+      <span class="context-menu-shortcut">Ctrl+X</span>
+    </div>
+    <div class="context-menu-item" onclick="contextMenuAction('paste')" id="pasteMenuItem">
+      <i data-lucide="clipboard"></i>
+      <span>粘贴</span>
+      <span class="context-menu-shortcut">Ctrl+V</span>
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" onclick="contextMenuAction('newFile')">
+      <i data-lucide="file-plus"></i>
+      <span>新建文件</span>
+    </div>
+    <div class="context-menu-item" onclick="contextMenuAction('newFolder')">
+      <i data-lucide="folder-plus"></i>
+      <span>新建文件夹</span>
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" onclick="contextMenuAction('rename')">
+      <i data-lucide="edit-3"></i>
+      <span>重命名</span>
+    </div>
+    <div class="context-menu-item danger" onclick="contextMenuAction('delete')">
+      <i data-lucide="trash-2"></i>
+      <span>删除</span>
+    </div>
+  </div>
+
+  <!-- 上传进度条 -->
+  <div class="upload-progress" id="uploadProgress">
+    <div class="upload-progress-header">
+      <div class="upload-progress-title">
+        <i data-lucide="upload-cloud"></i>
+        <span id="uploadProgressTitle">上传中...</span>
+      </div>
+      <button class="upload-progress-close" onclick="hideUploadProgress()">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    <div class="upload-progress-bar">
+      <div class="upload-progress-fill" id="uploadProgressFill" style="width: 0%"></div>
+    </div>
+    <div class="upload-progress-text">
+      <span id="uploadProgressFile">准备中...</span>
+      <span id="uploadProgressPercent">0%</span>
+    </div>
+  </div>
+
+  <!-- 传输进度悬浮窗 -->
+  <div class="transfer-panel" id="transferPanel">
+    <div class="transfer-panel-header">
+      <div class="transfer-panel-title">
+        <i data-lucide="arrow-up-down"></i>
+        <span>传输任务</span>
+        <span class="transfer-panel-badge" id="transferBadge">0</span>
+      </div>
+      <div class="transfer-panel-actions">
+        <button class="transfer-panel-btn" onclick="clearCompletedTransfers()" title="清除已完成">
+          <i data-lucide="trash-2"></i>
+        </button>
+        <button class="transfer-panel-btn" onclick="closeTransferPanel()" title="关闭">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+    </div>
+    <div class="transfer-panel-content" id="transferContent">
+      <div class="transfer-panel-empty">
+        <i data-lucide="inbox"></i>
+        <div>暂无传输任务</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 悬浮按钮（面板关闭时显示） -->
+  <div class="transfer-fab" id="transferFab" onclick="openTransferPanel()">
+    <i data-lucide="arrow-up-down"></i>
+    <span class="transfer-fab-badge" id="transferFabBadge" style="display: none;">0</span>
+  </div>
+
+  <script src="renderer.js"></script>
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Toggle password visibility
+    function togglePassword() {
+      const passwordInput = document.getElementById('ftpPassword');
+      const passwordIcon = document.getElementById('passwordIcon');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        passwordIcon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        passwordInput.type = 'password';
+        passwordIcon.setAttribute('data-lucide', 'eye');
+      }
+      
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>
