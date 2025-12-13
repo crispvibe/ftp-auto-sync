@@ -92,7 +92,7 @@ async function loadConfigs() {
 
 function renderConfigList() {
   const list = document.getElementById('configList');
-  
+
   if (configs.length === 0) {
     list.innerHTML = `
       <div class="empty-state">
@@ -106,12 +106,12 @@ function renderConfigList() {
     lucide.createIcons();
     return;
   }
-  
+
   list.innerHTML = configs.map(config => {
     const isConnected = connectedConfigs.has(config.id);
     const statusText = config.enabled ? '运行中' : (isConnected ? '已连接' : '已停止');
     const statusClass = config.enabled ? 'active' : (isConnected ? 'connected' : '');
-    
+
     return `
     <div class="config-item ${selectedConfigId === config.id ? 'active' : ''}" data-id="${config.id}" onclick="selectConfig('${config.id}')" ondblclick="editConfig('${config.id}')">
       <div class="config-header">
@@ -144,28 +144,54 @@ function renderConfigList() {
     </div>
   `;
   }).join('');
-  
+
   // Re-initialize Lucide icons for newly added elements
   lucide.createIcons();
 }
 
 function renderLogs() {
   const logEntries = document.getElementById('logEntries');
+  const logStats = document.getElementById('logStats');
   if (!logEntries) return;
-  
+
   // 如果没有选中的配置
   if (!selectedConfigId) {
     logEntries.innerHTML = '<div style="padding: 10px; text-align: center; color: #555; font-size: 10px;">选择配置查看日志</div>';
+    if (logStats) logStats.innerHTML = '';
     return;
   }
-  
+
   const configLogs = logs[selectedConfigId] || [];
-  
+
+  // 统计成功和失败的数量
+  let successCount = 0;
+  let errorCount = 0;
+  configLogs.forEach(log => {
+    if (log.type === 'success') successCount++;
+    else if (log.type === 'error') errorCount++;
+  });
+
+  // 更新统计显示
+  if (logStats) {
+    if (successCount > 0 || errorCount > 0) {
+      let statsHtml = '';
+      if (successCount > 0) {
+        statsHtml += `<span class="log-stat-success">${successCount} 成功</span>`;
+      }
+      if (errorCount > 0) {
+        statsHtml += `<span class="log-stat-error">${errorCount} 失败</span>`;
+      }
+      logStats.innerHTML = statsHtml;
+    } else {
+      logStats.innerHTML = '';
+    }
+  }
+
   if (configLogs.length === 0) {
     logEntries.innerHTML = '<div style="padding: 10px; text-align: center; color: #555; font-size: 10px;">暂无日志</div>';
     return;
   }
-  
+
   // 显示日志（最新的在底部）
   logEntries.innerHTML = configLogs.slice(-200).map(log => `
     <div class="log-entry ${log.type}">
@@ -173,14 +199,18 @@ function renderLogs() {
       <span class="log-message">${log.message}</span>
     </div>
   `).join('');
-  
+
   // 自动滚动到底部
   logEntries.scrollTop = logEntries.scrollHeight;
 }
 
 function formatTime(timestamp) {
   const date = new Date(timestamp);
-  return date.toLocaleTimeString('zh-CN', { hour12: false });
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }) + ' ' + date.toLocaleTimeString('zh-CN', { hour12: false });
 }
 
 function maskHost(host) {
@@ -196,13 +226,13 @@ async function selectConfig(configId) {
   selectedFile = null;
   isFileModified = false;
   expandedDirs.clear();
-  
+
   // 重置导航历史
   resetNavigationHistory();
-  
+
   renderConfigList();
   renderLogs();
-  
+
   // 加载文件树
   await loadFileTree();
 }
@@ -211,12 +241,12 @@ async function selectConfig(configId) {
 async function connectFtp(configId, event) {
   const config = configs.find(c => c.id === configId);
   if (!config) return;
-  
+
   const btn = event.target;
   const originalText = btn.textContent;
   btn.textContent = '连接中...';
   btn.disabled = true;
-  
+
   // 先测试连接
   const result = await ipcRenderer.invoke('test-ftp-connection', {
     host: config.host,
@@ -225,25 +255,25 @@ async function connectFtp(configId, event) {
     password: config.password,
     secure: config.secure || false
   });
-  
+
   btn.textContent = originalText;
   btn.disabled = false;
-  
+
   if (result.success) {
     // 连接成功，标记为已连接
     connectedConfigs.add(configId);
-    
+
     // 选中该配置并加载文件树
     selectedConfigId = configId;
     currentRemotePath = config.remotePath || '/';
     selectedFile = null;
     isFileModified = false;
     expandedDirs.clear();
-    
+
     renderConfigList();
     renderLogs();
     await loadFileTree();
-    
+
     showToast('success', '连接成功', '已连接到 FTP 服务器');
   } else {
     // 连接失败，移除连接状态
@@ -256,7 +286,7 @@ async function connectFtp(configId, event) {
 // 断开 FTP 连接
 function disconnectFtp(configId) {
   connectedConfigs.delete(configId);
-  
+
   // 如果断开的是当前选中的配置，清空文件树
   if (selectedConfigId === configId) {
     fileTreeData = [];
@@ -267,7 +297,7 @@ function disconnectFtp(configId) {
     navigationIndex = -1;
     showFileManagerEmpty();
   }
-  
+
   renderConfigList();
   showToast('info', '已断开', '已断开 FTP 连接');
 }
@@ -276,12 +306,12 @@ function disconnectFtp(configId) {
 async function testConfigConnection(configId, event) {
   const config = configs.find(c => c.id === configId);
   if (!config) return;
-  
+
   const btn = event.target;
   const originalText = btn.textContent;
   btn.textContent = '测试中...';
   btn.disabled = true;
-  
+
   const result = await ipcRenderer.invoke('test-ftp-connection', {
     host: config.host,
     port: config.port || 21,
@@ -289,10 +319,10 @@ async function testConfigConnection(configId, event) {
     password: config.password,
     secure: config.secure || false
   });
-  
+
   btn.textContent = originalText;
   btn.disabled = false;
-  
+
   if (result.success) {
     showToast('success', '连接成功', 'FTP 服务器连接测试成功');
   } else {
@@ -303,19 +333,19 @@ async function testConfigConnection(configId, event) {
 function clearLogs(configId, event) {
   const config = configs.find(c => c.id === configId);
   if (!config) return;
-  
+
   // 确认清除
   if (logs[configId] && logs[configId].length > 0) {
     const btn = event.target.closest('.log-copy-btn');
     const originalText = btn.innerHTML;
-    
+
     // 清除日志
     logs[configId] = [];
-    
+
     // 显示反馈
     btn.innerHTML = '<i data-lucide="check"></i><span>已清除</span>';
     lucide.createIcons();
-    
+
     setTimeout(() => {
       btn.innerHTML = originalText;
       lucide.createIcons();
@@ -327,18 +357,18 @@ function clearLogs(configId, event) {
 function copyLogs(configId, event) {
   const config = configs.find(c => c.id === configId);
   if (!config || !logs[configId]) return;
-  
+
   const logText = logs[configId]
     .map(log => `[${formatTime(log.timestamp)}] ${log.message}`)
     .join('\n');
-  
+
   navigator.clipboard.writeText(logText).then(() => {
     // Show feedback
     const btn = event.target.closest('.log-copy-btn');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i data-lucide="check"></i><span>已复制</span>';
     lucide.createIcons();
-    
+
     setTimeout(() => {
       btn.innerHTML = originalText;
       lucide.createIcons();
@@ -380,7 +410,7 @@ function renderExcludeFolders(folders) {
     container.innerHTML = '';
     return;
   }
-  
+
   container.innerHTML = folders.map((folder, index) => `
     <div class="exclude-folder-item" data-index="${index}">
       <input type="text" value="${folder}" placeholder="文件夹路径" onchange="updateExcludeFolder(${index}, this.value)">
@@ -390,7 +420,7 @@ function renderExcludeFolders(folders) {
       </button>
     </div>
   `).join('');
-  
+
   lucide.createIcons();
 }
 
@@ -399,7 +429,7 @@ function addExcludeFolder() {
   const container = document.getElementById('excludeFoldersContainer');
   const items = container.querySelectorAll('.exclude-folder-item');
   const index = items.length;
-  
+
   const div = document.createElement('div');
   div.className = 'exclude-folder-item';
   div.dataset.index = index;
@@ -410,10 +440,10 @@ function addExcludeFolder() {
       <i data-lucide="x"></i>
     </button>
   `;
-  
+
   container.appendChild(div);
   lucide.createIcons();
-  
+
   // 聚焦到新添加的输入框
   div.querySelector('input').focus();
 }
@@ -421,14 +451,14 @@ function addExcludeFolder() {
 // 浏览选择排除文件夹
 async function browseExcludeFolder(index) {
   const localPath = document.getElementById('localPath').value.trim();
-  
+
   const result = await ipcRenderer.invoke('select-directory', localPath || undefined);
   if (result) {
     const container = document.getElementById('excludeFoldersContainer');
     const items = container.querySelectorAll('.exclude-folder-item');
     if (items[index]) {
       const input = items[index].querySelector('input');
-      
+
       // 如果选择的是本地监控目录的子目录，只保留相对路径
       if (localPath && result.startsWith(localPath)) {
         let relativePath = result.substring(localPath.length);
@@ -446,7 +476,7 @@ async function browseExcludeFolder(index) {
 // 选择多个排除文件夹
 async function selectExcludeFolders() {
   const localPath = document.getElementById('localPath').value.trim();
-  
+
   const result = await ipcRenderer.invoke('select-multiple-directories', localPath || undefined);
   if (result && result.length > 0) {
     result.forEach(folderPath => {
@@ -459,12 +489,12 @@ async function selectExcludeFolders() {
         }
         value = relativePath;
       }
-      
+
       // 添加到列表
       const container = document.getElementById('excludeFoldersContainer');
       const items = container.querySelectorAll('.exclude-folder-item');
       const index = items.length;
-      
+
       const div = document.createElement('div');
       div.className = 'exclude-folder-item';
       div.dataset.index = index;
@@ -475,7 +505,7 @@ async function selectExcludeFolders() {
           <i data-lucide="x"></i>
         </button>
       `;
-      
+
       container.appendChild(div);
     });
     lucide.createIcons();
@@ -534,21 +564,21 @@ async function testConnection(event) {
     password: document.getElementById('ftpPassword').value.trim(),
     secure: document.getElementById('secureConnection').checked
   };
-  
+
   if (!config.host || !config.username || !config.password) {
     showToast('error', '信息不完整', '请填写 FTP 主机、用户名和密码');
     return;
   }
-  
+
   const btn = event.target;
   btn.textContent = '测试中...';
   btn.disabled = true;
-  
+
   const result = await ipcRenderer.invoke('test-ftp-connection', config);
-  
+
   btn.textContent = '测试连接';
   btn.disabled = false;
-  
+
   if (result.success) {
     showToast('success', '连接成功', 'FTP 服务器连接测试成功');
   } else {
@@ -558,7 +588,7 @@ async function testConnection(event) {
 
 document.getElementById('configForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  
+
   const config = {
     id: currentEditId,
     name: document.getElementById('configName').value.trim(),
@@ -572,7 +602,7 @@ document.getElementById('configForm').addEventListener('submit', async (e) => {
     uploadNew: document.getElementById('uploadNew').checked,
     excludeFolders: getExcludeFolders() // 排除文件夹列表
   };
-  
+
   configs = await ipcRenderer.invoke('save-config', config);
   renderConfigList();
   closeModal();
@@ -586,7 +616,7 @@ async function toggleConfig(id, enabled) {
 function editConfig(id) {
   const config = configs.find(c => c.id === id);
   if (!config) return;
-  
+
   currentEditId = id;
   document.getElementById('modalTitle').textContent = '编辑 FTP 配置';
   document.getElementById('configName').value = config.name;
@@ -607,22 +637,22 @@ function editConfig(id) {
 async function deleteConfig(id) {
   const config = configs.find(c => c.id === id);
   const configName = config ? config.name : '此配置';
-  
+
   const confirmed = await showConfirm(
     '删除配置',
     `确定要删除配置 "${configName}" 吗？此操作无法撤销。`
   );
-  
+
   if (!confirmed) return;
-  
+
   configs = await ipcRenderer.invoke('delete-config', id);
   delete logs[id];
-  
+
   // 如果删除的是当前选中的配置，重新选择
   if (selectedConfigId === id) {
     selectedConfigId = configs.length > 0 ? configs[0].id : null;
   }
-  
+
   renderConfigList();
   renderLogs();
 }
@@ -632,15 +662,27 @@ ipcRenderer.on('log-message', (event, log) => {
   if (!logs[log.configId]) {
     logs[log.configId] = [];
   }
-  
+
   logs[log.configId].push(log);
-  
+
   // Keep only last 100 logs per config
   if (logs[log.configId].length > 100) {
     logs[log.configId] = logs[log.configId].slice(-100);
   }
-  
+
   renderLogs();
+});
+
+// 监听上传完成提示音事件
+ipcRenderer.on('play-upload-complete-sound', () => {
+  try {
+    const audio = new Audio('./assets/upload_complete.mp3');
+    audio.play().catch(err => {
+      console.error('播放提示音失败:', err);
+    });
+  } catch (err) {
+    console.error('创建音频失败:', err);
+  }
 });
 
 // Close modal on escape
@@ -657,40 +699,104 @@ function showToast(type, title, message) {
   const icon = document.getElementById('toastIcon');
   const titleEl = document.getElementById('toastTitle');
   const messageEl = document.getElementById('toastMessage');
-  
+
   // 设置图标
   const icons = {
     success: '<i data-lucide="check-circle"></i>',
     error: '<i data-lucide="x-circle"></i>',
     info: '<i data-lucide="info"></i>'
   };
-  
+
   icon.innerHTML = icons[type] || icons.info;
   titleEl.textContent = title;
   messageEl.textContent = message;
-  
+
   // 移除之前的类型类
   toast.classList.remove('success', 'error', 'info');
   toast.classList.add(type);
-  
+
   // 显示弹窗
   overlay.classList.add('show');
   toast.classList.add('show');
-  
+
   // 初始化图标
   lucide.createIcons();
-  
+
   // 3秒后自动关闭
   setTimeout(() => {
     overlay.classList.remove('show');
     toast.classList.remove('show');
   }, 3000);
-  
+
   // 点击遮罩关闭
   overlay.onclick = () => {
     overlay.classList.remove('show');
     toast.classList.remove('show');
   };
+}
+
+// 自定义输入对话框
+function showPrompt(title, message, defaultValue = '') {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('promptOverlay');
+    const dialog = document.getElementById('promptDialog');
+    const titleEl = document.getElementById('promptTitle');
+    const messageEl = document.getElementById('promptMessage');
+    const inputEl = document.getElementById('promptInput');
+    const cancelBtn = document.getElementById('promptCancel');
+    const okBtn = document.getElementById('promptOk');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    inputEl.value = defaultValue;
+
+    // 显示对话框
+    overlay.classList.add('show');
+    dialog.classList.add('show');
+
+    // 处理确认
+    const handleOk = () => {
+      cleanup();
+      resolve(inputEl.value);
+    };
+
+    // 处理取消
+    const handleCancel = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    // 清理函数
+    const cleanup = () => {
+      overlay.classList.remove('show');
+      dialog.classList.remove('show');
+      okBtn.removeEventListener('click', handleOk);
+      cancelBtn.removeEventListener('click', handleCancel);
+      inputEl.removeEventListener('keydown', handleInputKeydown);
+    };
+
+    // 输入框键盘事件
+    const handleInputKeydown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCancel();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleOk();
+      }
+    };
+
+    // 绑定事件
+    okBtn.addEventListener('click', handleOk);
+    cancelBtn.addEventListener('click', handleCancel);
+    inputEl.addEventListener('keydown', handleInputKeydown);
+
+    // 聚焦输入框并选中内容
+    setTimeout(() => {
+      inputEl.focus();
+      inputEl.select();
+    }, 100);
+  });
 }
 
 // 自定义确认对话框
@@ -702,29 +808,29 @@ function showConfirm(title, message) {
     const messageEl = document.getElementById('confirmMessage');
     const cancelBtn = document.getElementById('confirmCancel');
     const okBtn = document.getElementById('confirmOk');
-    
+
     titleEl.textContent = title;
     messageEl.textContent = message;
-    
+
     // 显示对话框
     overlay.classList.add('show');
     dialog.classList.add('show');
-    
+
     // 初始化图标
     lucide.createIcons();
-    
+
     // 处理确认
     const handleOk = () => {
       cleanup();
       resolve(true);
     };
-    
+
     // 处理取消
     const handleCancel = () => {
       cleanup();
       resolve(false);
     };
-    
+
     // 清理函数
     const cleanup = () => {
       overlay.classList.remove('show');
@@ -734,7 +840,7 @@ function showConfirm(title, message) {
       overlay.removeEventListener('click', handleCancel);
       document.removeEventListener('keydown', handleKeydown);
     };
-    
+
     // 键盘事件处理
     const handleKeydown = (e) => {
       if (e.key === 'Escape') {
@@ -745,13 +851,13 @@ function showConfirm(title, message) {
         handleOk();
       }
     };
-    
+
     // 绑定事件
     okBtn.addEventListener('click', handleOk);
     cancelBtn.addEventListener('click', handleCancel);
     overlay.addEventListener('click', handleCancel);
     document.addEventListener('keydown', handleKeydown);
-    
+
     // 聚焦确认按钮
     okBtn.focus();
   });
@@ -805,11 +911,11 @@ ipcRenderer.on('add-transfer-task', (event, { type, fileName, filePath, taskId }
 // 自动去除输入框首尾空格
 function setupAutoTrim() {
   const inputIds = ['configName', 'localPath', 'ftpHost', 'ftpUsername', 'ftpPassword', 'remotePath'];
-  
+
   inputIds.forEach(id => {
     const input = document.getElementById(id);
     if (input) {
-      input.addEventListener('blur', function() {
+      input.addEventListener('blur', function () {
         this.value = this.value.trim();
       });
     }
@@ -819,6 +925,7 @@ function setupAutoTrim() {
 // 在页面加载后设置自动去除空格
 document.addEventListener('DOMContentLoaded', () => {
   initWindowControls(); // 初始化窗口控制按钮
+  initFullscreenButton(); // 初始化全屏按钮
   setupAutoTrim();
   setupFileManager();
   setupDragAndDrop();
@@ -897,17 +1004,17 @@ async function loadFileTree() {
   if (result.success) {
     fileTreeData = result.files;
     currentRemotePath = remotePath;
-    
+
     // 标记为已连接
     connectedConfigs.add(selectedConfigId);
     renderConfigList();
-    
+
     // 初始化导航历史（将初始路径添加到历史）
     if (navigationHistory.length === 0) {
       navigationHistory.push(remotePath);
       navigationIndex = 0;
     }
-    
+
     renderFileTree();
     updateNavigationButtons();
     updatePathDisplay();
@@ -931,18 +1038,18 @@ function showFileManagerEmpty() {
 // 渲染文件树
 function renderFileTree() {
   const treeContent = document.getElementById('fileTreeContent');
-  
+
   if (fileTreeData.length === 0) {
     treeContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">目录为空</div>';
     return;
   }
 
   let html = '';
-  
+
   // 添加返回上级目录
   const config = configs.find(c => c.id === selectedConfigId);
   const basePath = config ? (config.remotePath || '/') : '/';
-  
+
   if (currentRemotePath !== basePath && currentRemotePath !== '/') {
     html += `
       <div class="tree-item" onclick="navigateUp()">
@@ -958,23 +1065,51 @@ function renderFileTree() {
     const isDir = file.type === 'directory';
     const icon = isDir ? 'folder' : getFileIcon(file.name);
     const iconClass = isDir ? 'folder' : 'file';
-    const sizeText = isDir ? '' : formatFileSize(file.size);
-    
+    const sizeText = isDir ? '-' : formatFileSize(file.size);
+    const timeText = formatFileTime(file.modifiedAt);
+    const permText = file.permissions || '-';
+
+    // 构建悬浮提示内容
+    const tooltipLines = [
+      `名称: ${file.name}`,
+      `类型: ${isDir ? '文件夹' : '文件'}`,
+      `大小: ${isDir ? '-' : formatFileSize(file.size, true)}`,
+      `修改时间: ${formatFileTimeDetail(file.modifiedAt)}`,
+      `权限: ${file.permissions || '未知'}`,
+      file.owner ? `所有者: ${file.owner}` : null,
+      file.group ? `用户组: ${file.group}` : null,
+      file.isSymbolicLink ? `链接到: ${file.link}` : null
+    ].filter(Boolean).join('\n');
+
+    // 转义 HTML 属性中的特殊字符
+    const escapedTooltip = escapeHtml(tooltipLines);
+    const escapedName = escapeHtml(file.name);
+    const escapedPath = escapeHtml(file.path);
+
     html += `
       <div class="tree-item ${selectedFile && selectedFile.path === file.path ? 'selected' : ''}" 
-           data-path="${file.path}" 
+           data-path="${escapedPath}" 
            data-type="${file.type}"
-           data-name="${file.name}"
+           data-name="${escapedName}"
+           data-size="${file.size || 0}"
+           data-modified="${file.modifiedAt || ''}"
+           data-permissions="${file.permissions || ''}"
            onclick="selectFile(this)"
            ondblclick="openFile(this)"
            oncontextmenu="showContextMenu(event, this)"
            draggable="true"
-           ondragstart="handleDragStart(event, this)">
+           ondragstart="handleDragStart(event, this)"
+           title="${escapedTooltip}">
         <div class="tree-item-icon ${iconClass}">
           <i data-lucide="${icon}"></i>
         </div>
-        <span class="tree-item-name">${file.name}</span>
-        ${sizeText ? `<span class="tree-item-size">${sizeText}</span>` : ''}
+        <div class="tree-item-info">
+          <div class="tree-item-row">
+            <span class="tree-item-name">${escapeHtml(file.name)}</span>
+            <span class="tree-item-size">${sizeText}</span>
+          </div>
+          <div class="tree-item-time">${timeText}</div>
+        </div>
       </div>
     `;
   });
@@ -1025,14 +1160,69 @@ function getFileIcon(filename) {
   return iconMap[ext] || 'file';
 }
 
+// HTML 转义函数
+function escapeHtml(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // 格式化文件大小
-function formatFileSize(bytes) {
+function formatFileSize(bytes, detailed = false) {
   if (bytes === 0) return '0 B';
   if (!bytes) return '';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  const size = parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  if (detailed && bytes > 1024) {
+    return `${size} (${bytes.toLocaleString()} 字节)`;
+  }
+  return size;
+}
+
+// 格式化文件时间（简短格式，用于列表显示）
+function formatFileTime(isoString) {
+  if (!isoString) return '-';
+  try {
+    const date = new Date(isoString);
+    // 始终显示年-月-日 时:分
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }) + ' ' + date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch (e) {
+    return '-';
+  }
+}
+
+// 格式化文件时间（详细格式，用于提示）
+function formatFileTimeDetail(isoString) {
+  if (!isoString) return '未知';
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }) + ' ' + date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  } catch (e) {
+    return '未知';
+  }
 }
 
 // 选择文件
@@ -1080,7 +1270,7 @@ async function navigateToDir(dirPath, addToHistory = true) {
   if (result.success) {
     fileTreeData = result.files;
     currentRemotePath = dirPath;
-    
+
     // 添加到导航历史
     if (addToHistory && !isNavigating) {
       // 如果当前不在历史末尾，删除后面的历史
@@ -1090,7 +1280,7 @@ async function navigateToDir(dirPath, addToHistory = true) {
       navigationHistory.push(dirPath);
       navigationIndex = navigationHistory.length - 1;
     }
-    
+
     renderFileTree();
     updateNavigationButtons();
     updatePathDisplay();
@@ -1103,16 +1293,16 @@ async function navigateToDir(dirPath, addToHistory = true) {
 // 返回上级目录
 async function navigateUp() {
   if (currentRemotePath === '/' || currentRemotePath === '') return;
-  
+
   // 获取配置的基础路径
   const config = configs.find(c => c.id === selectedConfigId);
   const basePath = config ? (config.remotePath || '/') : '/';
-  
+
   // 如果已经在基础路径，不再向上
   if (currentRemotePath === basePath) return;
-  
+
   const parentPath = path.posix.dirname(currentRemotePath);
-  
+
   // 确保不会超出基础路径
   if (basePath !== '/' && !parentPath.startsWith(basePath) && parentPath !== basePath) {
     await navigateToDir(basePath);
@@ -1124,7 +1314,7 @@ async function navigateUp() {
 // 后退
 async function navigateBack() {
   if (navigationIndex <= 0) return;
-  
+
   isNavigating = true;
   navigationIndex--;
   await navigateToDir(navigationHistory[navigationIndex], false);
@@ -1135,7 +1325,7 @@ async function navigateBack() {
 // 前进
 async function navigateForward() {
   if (navigationIndex >= navigationHistory.length - 1) return;
-  
+
   isNavigating = true;
   navigationIndex++;
   await navigateToDir(navigationHistory[navigationIndex], false);
@@ -1148,11 +1338,11 @@ function updateNavigationButtons() {
   const backBtn = document.getElementById('navBackBtn');
   const forwardBtn = document.getElementById('navForwardBtn');
   const upBtn = document.getElementById('navUpBtn');
-  
+
   // 获取配置的基础路径
   const config = configs.find(c => c.id === selectedConfigId);
   const basePath = config ? (config.remotePath || '/') : '/';
-  
+
   if (backBtn) {
     backBtn.disabled = navigationIndex <= 0;
   }
@@ -1235,7 +1425,7 @@ async function loadFileContent(filePath, fileName) {
 
   document.getElementById('fileEditorEmpty').style.display = 'none';
   document.getElementById('fileEditor').style.display = 'flex';
-  
+
   document.getElementById('editorFilePath').textContent = fileName;
 
   // 隐藏图片预览容器（如果存在）
@@ -1272,19 +1462,19 @@ async function loadFileContent(filePath, fileName) {
         codeEditor.setOption('mode', mode);
         codeEditor.setOption('readOnly', false);
       }
-      
+
       // 设置内容
       codeEditor.setValue(result.content);
-      
+
       // 刷新编辑器
       setTimeout(() => codeEditor.refresh(), 10);
     }
-    
+
     currentFileContent = result.content;
     isFileModified = false;
     selectedFile = { path: filePath, name: fileName, type: 'file', isBinary: result.isBinary };
     updateEditorTitle();
-    
+
     // 二进制文件提示
     if (result.isBinary) {
       document.getElementById('editorFilePath').textContent = fileName + ' (二进制预览)';
@@ -1297,7 +1487,7 @@ async function loadFileContent(filePath, fileName) {
     document.getElementById('editorFilePath').textContent = '加载失败';
     showToast('error', '加载失败', result.error);
   }
-  
+
   lucide.createIcons();
 }
 
@@ -1306,7 +1496,7 @@ async function loadImagePreview(filePath, fileName) {
   // 获取或创建图片预览容器
   let imagePreview = document.getElementById('imagePreviewContainer');
   const editorContainer = document.getElementById('editorContainer');
-  
+
   if (!imagePreview) {
     imagePreview = document.createElement('div');
     imagePreview.id = 'imagePreviewContainer';
@@ -1316,30 +1506,30 @@ async function loadImagePreview(filePath, fileName) {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: #0a0a0a;
+      background: var(--bg-tertiary);
       overflow: auto;
       padding: 20px;
     `;
     editorContainer.parentNode.insertBefore(imagePreview, editorContainer.nextSibling);
   }
-  
+
   // 隐藏代码编辑器，显示图片预览
   editorContainer.style.display = 'none';
   imagePreview.style.display = 'flex';
-  
+
   // 显示加载状态
   imagePreview.innerHTML = `
-    <div style="color: #666; text-align: center;">
+    <div style="color: var(--text-tertiary); text-align: center;">
       <div style="margin-bottom: 10px;">加载图片中...</div>
     </div>
   `;
-  
+
   // 下载图片到临时文件
   const result = await ipcRenderer.invoke('ftp-download-image', {
     configId: selectedConfigId,
     remotePath: filePath
   });
-  
+
   if (result.success) {
     const img = document.createElement('img');
     img.src = `file://${result.tempPath}?t=${Date.now()}`; // 添加时间戳避免缓存
@@ -1348,47 +1538,47 @@ async function loadImagePreview(filePath, fileName) {
       max-height: 100%;
       object-fit: contain;
       border-radius: 4px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      box-shadow: var(--shadow-md);
     `;
-    
+
     img.onload = () => {
       imagePreview.innerHTML = '';
-      
+
       // 图片信息
       const info = document.createElement('div');
       info.style.cssText = `
         margin-bottom: 15px;
-        color: #888;
+        color: var(--text-tertiary);
         font-size: 12px;
         text-align: center;
       `;
       info.textContent = `${img.naturalWidth} x ${img.naturalHeight} 像素`;
-      
+
       imagePreview.appendChild(info);
       imagePreview.appendChild(img);
     };
-    
+
     img.onerror = () => {
       imagePreview.innerHTML = `
-        <div style="color: #d85656; text-align: center;">
+        <div style="color: var(--accent-red); text-align: center;">
           <div style="font-size: 14px; margin-bottom: 5px;">图片加载失败</div>
-          <div style="font-size: 12px; color: #666;">请尝试下载后查看</div>
+          <div style="font-size: 12px; color: var(--text-tertiary);">请尝试下载后查看</div>
         </div>
       `;
     };
-    
+
     selectedFile = { path: filePath, name: fileName, type: 'file', isImage: true };
     isFileModified = false;
     document.getElementById('editorFilePath').textContent = fileName + ' (图片预览)';
   } else {
     imagePreview.innerHTML = `
-      <div style="color: #d85656; text-align: center;">
+      <div style="color: var(--accent-red); text-align: center;">
         <div style="font-size: 14px; margin-bottom: 5px;">加载失败</div>
-        <div style="font-size: 12px; color: #666;">${result.error}</div>
+        <div style="font-size: 12px; color: var(--text-tertiary);">${result.error}</div>
       </div>
     `;
   }
-  
+
   lucide.createIcons();
 }
 
@@ -1464,31 +1654,60 @@ let isEditorFullscreen = false;
 // 切换编辑器全屏
 function toggleEditorFullscreen() {
   const editor = document.getElementById('fileEditor');
-  const icon = document.getElementById('fullscreenIcon');
-  
+  const iconWrap = document.getElementById('fullscreenIconWrap');
+  const fabContainer = document.getElementById('fullscreenFabContainer');
+  const fabMenu = document.getElementById('fullscreenFabMenu');
+  const fabToggle = document.getElementById('fullscreenFabToggle');
+
   if (!editor) return;
-  
+
   isEditorFullscreen = !isEditorFullscreen;
-  
+
+  // 放大图标 SVG
+  const maximizeIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>';
+  // 缩小图标 SVG
+  const minimizeIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>';
+
   if (isEditorFullscreen) {
     editor.classList.add('fullscreen');
-    if (icon) {
-      icon.setAttribute('data-lucide', 'minimize-2');
-    }
+    if (iconWrap) iconWrap.innerHTML = minimizeIcon;
+    if (fabContainer) fabContainer.classList.add('show');
   } else {
     editor.classList.remove('fullscreen');
-    if (icon) {
-      icon.setAttribute('data-lucide', 'maximize-2');
-    }
+    if (iconWrap) iconWrap.innerHTML = maximizeIcon;
+    if (fabContainer) fabContainer.classList.remove('show');
+    if (fabMenu) fabMenu.classList.remove('show');
+    if (fabToggle) fabToggle.classList.remove('open');
   }
-  
-  // 重新渲染图标
-  lucide.createIcons();
-  
+
   // 刷新 CodeMirror 编辑器
   if (codeEditor) {
     setTimeout(() => codeEditor.refresh(), 50);
   }
+}
+
+// 切换全屏菜单显示
+function toggleFullscreenMenu() {
+  const fabMenu = document.getElementById('fullscreenFabMenu');
+  const fabToggle = document.getElementById('fullscreenFabToggle');
+
+  if (fabMenu) fabMenu.classList.toggle('show');
+  if (fabToggle) fabToggle.classList.toggle('open');
+}
+
+// 初始化全屏按钮事件
+function initFullscreenButton() {
+  // 全屏按钮点击（顶部按钮）
+  document.addEventListener('click', (e) => {
+    if (e.target.id === 'fullscreenBtn' ||
+      e.target.closest('#fullscreenBtn') ||
+      e.target.id === 'fullscreenIconWrap' ||
+      e.target.closest('#fullscreenIconWrap')) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleEditorFullscreen();
+    }
+  }, true);
 }
 
 // 退出全屏（ESC 键）
@@ -1513,14 +1732,21 @@ async function downloadCurrentFile() {
 
   if (result.canceled || !result.path) return;
 
-  // 添加到传输面板
-  const taskId = addTransferTask('download', selectedFile.name, selectedFile.path);
+  const localPath = isDir ? path.join(result.path, selectedFile.name) : result.path;
+
+  // 添加到传输面板（包含重试所需信息）
+  const taskId = addTransferTask('download', selectedFile.name, selectedFile.path, {
+    localPath: localPath,
+    remotePath: selectedFile.path,
+    configId: selectedConfigId,
+    isDirectory: isDir
+  });
 
   if (isDir) {
     const downloadResult = await ipcRenderer.invoke('ftp-download-dir', {
       configId: selectedConfigId,
       remotePath: selectedFile.path,
-      localPath: path.join(result.path, selectedFile.name),
+      localPath: localPath,
       taskId: taskId
     });
     if (downloadResult.success) {
@@ -1534,7 +1760,7 @@ async function downloadCurrentFile() {
     const downloadResult = await ipcRenderer.invoke('ftp-download', {
       configId: selectedConfigId,
       remotePath: selectedFile.path,
-      localPath: result.path,
+      localPath: localPath,
       taskId: taskId
     });
     if (downloadResult.success) {
@@ -1556,7 +1782,7 @@ async function deleteCurrentFile() {
 
   const isDir = selectedFile.type === 'directory';
   const typeText = isDir ? '文件夹' : '文件';
-  
+
   const confirmed = await showConfirm('确认删除', `确定要删除${typeText} "${selectedFile.name}" 吗？此操作无法撤销。`);
   if (!confirmed) return;
 
@@ -1587,7 +1813,7 @@ async function createRemoteDir() {
   if (!dirName || !dirName.trim()) return;
 
   const newPath = path.posix.join(currentRemotePath, dirName.trim());
-  
+
   const result = await ipcRenderer.invoke('ftp-create-dir', {
     configId: selectedConfigId,
     remotePath: newPath
@@ -1608,7 +1834,7 @@ function setupContextMenu() {
   document.addEventListener('click', () => {
     hideContextMenu();
   });
-  
+
   // 在文件树空白区域右键
   const fileTreeContent = document.getElementById('fileTreeContent');
   if (fileTreeContent) {
@@ -1617,17 +1843,18 @@ function setupContextMenu() {
       if (event.target.closest('.tree-item')) {
         return;
       }
-      
+
       event.preventDefault();
       event.stopPropagation();
-      
+
       // 设置为当前目录
       contextMenuTarget = {
         path: currentRemotePath,
         type: 'directory',
-        name: path.posix.basename(currentRemotePath) || '/'
+        name: path.posix.basename(currentRemotePath) || '/',
+        permissions: null
       };
-      
+
       showContextMenuAt(event.clientX, event.clientY);
     });
   }
@@ -1640,7 +1867,8 @@ function showContextMenu(event, element) {
   contextMenuTarget = {
     path: element.dataset.path,
     type: element.dataset.type,
-    name: element.dataset.name
+    name: element.dataset.name,
+    permissions: element.dataset.permissions || null
   };
 
   showContextMenuAt(event.clientX, event.clientY);
@@ -1648,22 +1876,33 @@ function showContextMenu(event, element) {
 
 function showContextMenuAt(x, y) {
   const menu = document.getElementById('contextMenu');
-  
+
+  // 根据文件类型显示/隐藏解压选项
+  const extractItem = document.getElementById('extractItem');
+  if (extractItem && contextMenuTarget) {
+    const fileName = contextMenuTarget.name.toLowerCase();
+    const isArchive = fileName.endsWith('.zip') ||
+      fileName.endsWith('.tar') ||
+      fileName.endsWith('.tar.gz') ||
+      fileName.endsWith('.tgz');
+    extractItem.style.display = isArchive ? 'flex' : 'none';
+  }
+
   // 确保菜单不超出屏幕
-  const menuWidth = 160;
-  const menuHeight = 200;
-  
+  const menuWidth = 180;
+  const menuHeight = 320;
+
   if (x + menuWidth > window.innerWidth) {
     x = window.innerWidth - menuWidth - 10;
   }
   if (y + menuHeight > window.innerHeight) {
     y = window.innerHeight - menuHeight - 10;
   }
-  
+
   menu.style.left = x + 'px';
   menu.style.top = y + 'px';
   menu.classList.add('show');
-  
+
   lucide.createIcons();
 }
 
@@ -1674,7 +1913,7 @@ function hideContextMenu() {
 
 async function contextMenuAction(action) {
   hideContextMenu();
-  
+
   if (!contextMenuTarget) return;
 
   switch (action) {
@@ -1694,16 +1933,16 @@ async function contextMenuAction(action) {
     case 'rename':
       const newName = prompt('请输入新名称:', contextMenuTarget.name);
       if (!newName || newName === contextMenuTarget.name) return;
-      
+
       const oldPath = contextMenuTarget.path;
       const newPath = path.posix.join(path.posix.dirname(oldPath), newName);
-      
+
       const renameResult = await ipcRenderer.invoke('ftp-rename', {
         configId: selectedConfigId,
         oldPath: oldPath,
         newPath: newPath
       });
-      
+
       if (renameResult.success) {
         showToast('success', '重命名成功', '');
         await refreshFileTree();
@@ -1736,30 +1975,127 @@ async function contextMenuAction(action) {
       selectedFile = contextMenuTarget;
       await deleteCurrentFile();
       break;
+
+    case 'compressZip':
+      await compressFiles([contextMenuTarget.path], 'zip');
+      break;
+
+    case 'compressTarGz':
+      await compressFiles([contextMenuTarget.path], 'tar.gz');
+      break;
+
+    case 'extract':
+      await extractFile(contextMenuTarget.path);
+      break;
+
+    case 'chmod':
+      await changePermissions(contextMenuTarget);
+      break;
+  }
+}
+
+// 修改文件权限
+async function changePermissions(target) {
+  if (!selectedConfigId || !target) return;
+
+  // 获取当前权限作为默认值
+  const currentPerm = target.permissions || '755';
+  const newPerm = await showPrompt('修改权限', '请输入新的权限值（如 755、644）:', currentPerm);
+
+  if (!newPerm) return;
+
+  // 验证权限格式
+  if (!/^[0-7]{3}$/.test(newPerm)) {
+    showToast('error', '格式错误', '权限格式应为3位数字，如 755、644');
+    return;
+  }
+
+  const result = await ipcRenderer.invoke('ftp-chmod', {
+    configId: selectedConfigId,
+    remotePath: target.path,
+    permissions: newPerm
+  });
+
+  if (result.success) {
+    showToast('success', '修改成功', `权限已修改为 ${newPerm}`);
+    await refreshFileTree();
+  } else {
+    showToast('error', '修改失败', result.error);
+  }
+}
+
+// 压缩文件/文件夹
+async function compressFiles(remotePaths, format) {
+  if (!selectedConfigId || remotePaths.length === 0) return;
+
+  const formatName = format === 'tar.gz' ? 'TAR.GZ' : 'ZIP';
+  showToast('info', '压缩中', `正在压缩为 ${formatName} 格式...`);
+
+  const result = await ipcRenderer.invoke('ftp-compress', {
+    configId: selectedConfigId,
+    remotePaths: remotePaths,
+    targetPath: currentRemotePath,
+    format: format
+  });
+
+  if (result.success) {
+    showToast('success', '压缩成功', `已创建 ${result.archiveName}`);
+    await refreshFileTree();
+  } else {
+    showToast('error', '压缩失败', result.error);
+  }
+}
+
+// 解压文件
+async function extractFile(remotePath) {
+  if (!selectedConfigId) return;
+
+  const fileName = path.posix.basename(remotePath).toLowerCase();
+  const supportedFormats = ['.zip', '.tar', '.tar.gz', '.tgz'];
+  const isSupported = supportedFormats.some(ext => fileName.endsWith(ext));
+
+  if (!isSupported) {
+    showToast('error', '不支持的格式', '仅支持 .zip, .tar, .tar.gz, .tgz 格式');
+    return;
+  }
+
+  showToast('info', '解压中', '正在解压文件...');
+
+  const result = await ipcRenderer.invoke('ftp-extract', {
+    configId: selectedConfigId,
+    remotePath: remotePath,
+    targetPath: currentRemotePath
+  });
+
+  if (result.success) {
+    showToast('success', '解压成功', '文件已解压到当前目录');
+    await refreshFileTree();
+  } else {
+    showToast('error', '解压失败', result.error);
   }
 }
 
 // 复制到剪贴板
 function copyToClipboard(target) {
   if (!target) return;
-  
+
   clipboard = {
     items: [{ path: target.path, name: target.name, type: target.type }],
     operation: 'copy'
   };
-  
+
   showToast('info', '已复制', `${target.name} 已复制到剪贴板`);
 }
 
 // 剪切到剪贴板
 function cutToClipboard(target) {
   if (!target) return;
-  
+
   clipboard = {
     items: [{ path: target.path, name: target.name, type: target.type }],
     operation: 'cut'
   };
-  
+
   showToast('info', '已剪切', `${target.name} 已剪切到剪贴板`);
 }
 
@@ -1769,7 +2105,7 @@ async function pasteFromClipboard(target) {
     showToast('info', '提示', '剪贴板为空');
     return;
   }
-  
+
   // 确定目标目录
   let targetDir = currentRemotePath;
   if (target) {
@@ -1779,24 +2115,24 @@ async function pasteFromClipboard(target) {
       targetDir = path.posix.dirname(target.path);
     }
   }
-  
+
   let successCount = 0;
   let failCount = 0;
-  
+
   for (const item of clipboard.items) {
     const newPath = path.posix.join(targetDir, item.name);
-    
+
     // 检查是否粘贴到自身或子目录
     if (item.path === newPath) {
       showToast('error', '粘贴失败', '不能粘贴到相同位置');
       continue;
     }
-    
+
     if (newPath.startsWith(item.path + '/')) {
       showToast('error', '粘贴失败', '不能将文件夹粘贴到其子目录');
       continue;
     }
-    
+
     if (clipboard.operation === 'copy') {
       // 复制操作
       const result = await ipcRenderer.invoke('ftp-copy', {
@@ -1805,7 +2141,7 @@ async function pasteFromClipboard(target) {
         targetPath: newPath,
         isDir: item.type === 'directory'
       });
-      
+
       if (result.success) {
         successCount++;
       } else {
@@ -1819,7 +2155,7 @@ async function pasteFromClipboard(target) {
         oldPath: item.path,
         newPath: newPath
       });
-      
+
       if (result.success) {
         successCount++;
       } else {
@@ -1828,12 +2164,12 @@ async function pasteFromClipboard(target) {
       }
     }
   }
-  
+
   // 剪切完成后清空剪贴板
   if (clipboard.operation === 'cut' && successCount > 0) {
     clipboard = { items: [], operation: null };
   }
-  
+
   if (successCount > 0) {
     const actionText = clipboard.operation === 'copy' ? '复制' : '移动';
     showToast('success', `${actionText}成功`, `${successCount} 个项目已${actionText}`);
@@ -1852,24 +2188,24 @@ async function createRemoteDirAt(target) {
       parentPath = path.posix.dirname(target.path);
     }
   }
-  
+
   // 先用临时名称创建
   const tempName = `新建文件夹_${Date.now()}`;
   const tempPath = path.posix.join(parentPath, tempName);
-  
+
   const result = await ipcRenderer.invoke('ftp-create-dir', {
     configId: selectedConfigId,
     remotePath: tempPath
   });
-  
+
   if (result.success) {
     await refreshFileTree();
-    
+
     // 展开父目录（如果不是根目录）
     if (parentPath !== '/') {
       expandedDirs.add(parentPath);
     }
-    
+
     // 触发重命名
     setTimeout(() => {
       triggerInlineRename(tempPath, tempName, 'directory');
@@ -1890,25 +2226,25 @@ async function createRemoteFileAt(target) {
       parentPath = path.posix.dirname(target.path);
     }
   }
-  
+
   // 先用临时名称创建
   const tempName = `新建文件_${Date.now()}`;
   const tempPath = path.posix.join(parentPath, tempName);
-  
+
   const result = await ipcRenderer.invoke('ftp-create-file', {
     configId: selectedConfigId,
     remotePath: tempPath,
     content: ''
   });
-  
+
   if (result.success) {
     await refreshFileTree();
-    
+
     // 展开父目录（如果不是根目录）
     if (parentPath !== '/') {
       expandedDirs.add(parentPath);
     }
-    
+
     // 触发重命名
     setTimeout(() => {
       triggerInlineRename(tempPath, tempName, 'file');
@@ -1923,18 +2259,18 @@ function triggerInlineRename(filePath, fileName, fileType) {
   // 找到对应的树节点
   const treeItem = document.querySelector(`.tree-item[data-path="${filePath}"]`);
   if (!treeItem) return;
-  
+
   // 滚动到可见区域
   treeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  
+
   // 获取名称元素
   const nameSpan = treeItem.querySelector('.tree-item-name');
   if (!nameSpan) return;
-  
+
   // 保存原始内容
   const originalName = fileName;
   const originalPath = filePath;
-  
+
   // 创建输入框
   const input = document.createElement('input');
   input.type = 'text';
@@ -1950,11 +2286,11 @@ function triggerInlineRename(filePath, fileName, fileType) {
     width: 100%;
     outline: none;
   `;
-  
+
   // 替换名称为输入框
   nameSpan.style.display = 'none';
   nameSpan.parentNode.insertBefore(input, nameSpan.nextSibling);
-  
+
   // 选中文件名（不包含扩展名）
   input.focus();
   if (fileType === 'file') {
@@ -1967,13 +2303,13 @@ function triggerInlineRename(filePath, fileName, fileType) {
   } else {
     input.select();
   }
-  
+
   // 处理完成重命名
   const finishRename = async (newName) => {
     // 移除输入框，恢复名称显示
     input.remove();
     nameSpan.style.display = '';
-    
+
     if (!newName || newName === originalName) {
       // 如果没有改名或取消，删除临时创建的文件/文件夹
       if (originalName.startsWith('新建文件夹_') || originalName.startsWith('新建文件_')) {
@@ -1986,19 +2322,19 @@ function triggerInlineRename(filePath, fileName, fileType) {
       }
       return;
     }
-    
+
     // 执行重命名
     const newPath = path.posix.join(path.posix.dirname(originalPath), newName);
-    
+
     const renameResult = await ipcRenderer.invoke('ftp-rename', {
       configId: selectedConfigId,
       oldPath: originalPath,
       newPath: newPath
     });
-    
+
     if (renameResult.success) {
       await refreshFileTree();
-      
+
       // 如果是文件，自动打开（先重置修改状态避免弹出确认框）
       if (fileType === 'file') {
         isFileModified = false;
@@ -2009,12 +2345,12 @@ function triggerInlineRename(filePath, fileName, fileType) {
       await refreshFileTree();
     }
   };
-  
+
   // 绑定事件
   input.addEventListener('blur', () => {
     finishRename(input.value.trim());
   });
-  
+
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -2083,7 +2419,7 @@ function setupDragAndDrop() {
     fileTree.addEventListener('drop', async (e) => {
       const target = e.target.closest('.tree-item');
       let targetPath = currentRemotePath;
-      
+
       if (target) {
         target.classList.remove('drag-over');
         if (target.dataset.type === 'directory') {
@@ -2101,23 +2437,29 @@ async function handleFileDrop(files, targetPath) {
   if (!selectedConfigId || files.length === 0) return;
 
   targetPath = targetPath || currentRemotePath;
-  
+
   let successCount = 0;
   let failCount = 0;
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     const remotePath = path.posix.join(targetPath, file.name);
-    
+
     // 检查是否是文件夹（通过 path 属性）
     if (file.path) {
       const fs = require('fs');
       const stats = fs.statSync(file.path);
-      
-      // 添加到传输面板
-      const taskId = addTransferTask('upload', file.name, remotePath);
-      
-      if (stats.isDirectory()) {
+      const isDirectory = stats.isDirectory();
+
+      // 添加到传输面板（包含重试所需信息）
+      const taskId = addTransferTask('upload', file.name, remotePath, {
+        localPath: file.path,
+        remotePath: remotePath,
+        configId: selectedConfigId,
+        isDirectory: isDirectory
+      });
+
+      if (isDirectory) {
         const result = await ipcRenderer.invoke('ftp-upload-dir', {
           configId: selectedConfigId,
           localPath: file.path,
@@ -2148,7 +2490,7 @@ async function handleFileDrop(files, targetPath) {
       }
     }
   }
-  
+
   if (successCount > 0) {
     showToast('success', '上传完成', `成功 ${successCount} 个${failCount > 0 ? `，失败 ${failCount} 个` : ''}`);
     await refreshFileTree();
@@ -2161,25 +2503,66 @@ async function handleFileDrop(files, targetPath) {
 async function selectAndUploadFiles() {
   const result = await ipcRenderer.invoke('select-upload-files');
   if (result.canceled || !result.paths || result.paths.length === 0) return;
-  
+
+  await uploadPaths(result.paths);
+}
+
+// 选择并上传文件夹（支持多选）
+async function selectAndUploadFolder() {
+  const result = await ipcRenderer.invoke('select-upload-folder');
+  if (result.canceled || !result.paths || result.paths.length === 0) return;
+
+  await uploadPaths(result.paths);
+}
+
+// 上传路径列表（支持文件和文件夹）
+async function uploadPaths(paths) {
+  if (!selectedConfigId || paths.length === 0) return;
+
+  const fs = require('fs');
   let successCount = 0;
   let failCount = 0;
 
-  for (let i = 0; i < result.paths.length; i++) {
-    const localPath = result.paths[i];
+  for (let i = 0; i < paths.length; i++) {
+    const localPath = paths[i];
     const fileName = path.basename(localPath);
     const remotePath = path.posix.join(currentRemotePath, fileName);
-    
-    // 添加到传输面板
-    const taskId = addTransferTask('upload', fileName, remotePath);
-    
-    const uploadResult = await ipcRenderer.invoke('ftp-upload', {
-      configId: selectedConfigId,
+
+    // 检查是否是文件夹
+    let isDirectory = false;
+    try {
+      const stats = fs.statSync(localPath);
+      isDirectory = stats.isDirectory();
+    } catch (e) {
+      // 文件不存在，跳过
+      continue;
+    }
+
+    // 添加到传输面板（包含重试所需信息）
+    const taskId = addTransferTask('upload', fileName, remotePath, {
       localPath: localPath,
       remotePath: remotePath,
-      taskId: taskId
+      configId: selectedConfigId,
+      isDirectory: isDirectory
     });
-    
+
+    let uploadResult;
+    if (isDirectory) {
+      uploadResult = await ipcRenderer.invoke('ftp-upload-dir', {
+        configId: selectedConfigId,
+        localPath: localPath,
+        remotePath: remotePath,
+        taskId: taskId
+      });
+    } else {
+      uploadResult = await ipcRenderer.invoke('ftp-upload', {
+        configId: selectedConfigId,
+        localPath: localPath,
+        remotePath: remotePath,
+        taskId: taskId
+      });
+    }
+
     if (uploadResult.success) {
       successCount++;
       completeTransferTask(taskId, true);
@@ -2188,7 +2571,7 @@ async function selectAndUploadFiles() {
       completeTransferTask(taskId, false, uploadResult.error);
     }
   }
-  
+
   if (successCount > 0) {
     showToast('success', '上传完成', `成功 ${successCount} 个${failCount > 0 ? `，失败 ${failCount} 个` : ''}`);
     await refreshFileTree();
@@ -2268,9 +2651,9 @@ function updateUploadProgress(fileName, percent) {
 function toggleLogs() {
   const container = document.getElementById('logsContainer');
   const btn = document.getElementById('logsToggleBtn');
-  
+
   isLogsCollapsed = !isLogsCollapsed;
-  
+
   if (isLogsCollapsed) {
     // 保存当前高度用于恢复
     if (!container.dataset.lastHeight) {
@@ -2286,7 +2669,7 @@ function toggleLogs() {
     container.classList.remove('collapsed');
     btn.innerHTML = '<i data-lucide="chevron-down"></i><span>折叠</span>';
   }
-  
+
   lucide.createIcons();
 }
 
@@ -2294,7 +2677,7 @@ function toggleLogs() {
 function setupLogsResizer() {
   const resizer = document.getElementById('logsResizer');
   const logsContainer = document.getElementById('logsContainer');
-  
+
   if (!resizer || !logsContainer) return;
 
   let startY, startHeight;
@@ -2306,7 +2689,7 @@ function setupLogsResizer() {
     resizer.classList.add('dragging');
     document.body.style.cursor = 'row-resize';
     document.body.style.userSelect = 'none';
-    
+
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   });
@@ -2315,7 +2698,7 @@ function setupLogsResizer() {
     const delta = startY - e.clientY;
     const newHeight = Math.max(40, Math.min(500, startHeight + delta));
     logsContainer.style.height = newHeight + 'px';
-    
+
     // 更新折叠按钮状态
     const btn = document.getElementById('logsToggleBtn');
     if (newHeight <= 40) {
@@ -2345,7 +2728,7 @@ function setupLogsResizer() {
 function setupTreeResizer() {
   const resizer = document.getElementById('treeEditorResizer');
   const fileTree = document.getElementById('fileTree');
-  
+
   if (!resizer || !fileTree) return;
 
   let startX, startWidth;
@@ -2357,7 +2740,7 @@ function setupTreeResizer() {
     resizer.classList.add('dragging');
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-    
+
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   });
@@ -2374,7 +2757,7 @@ function setupTreeResizer() {
     document.body.style.userSelect = '';
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
-    
+
     // 刷新 CodeMirror 编辑器
     if (codeEditor) {
       setTimeout(() => codeEditor.refresh(), 10);
@@ -2386,7 +2769,7 @@ function setupTreeResizer() {
 function setupSidebarResizer() {
   const resizer = document.getElementById('sidebarResizer');
   const sidebar = document.getElementById('sidebar');
-  
+
   if (!resizer || !sidebar) return;
 
   let startX, startWidth;
@@ -2398,7 +2781,7 @@ function setupSidebarResizer() {
     resizer.classList.add('dragging');
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-    
+
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   });
@@ -2426,7 +2809,7 @@ function setupKeyboardShortcuts() {
     const activeEl = document.activeElement;
     const isInEditor = activeEl && (activeEl.classList.contains('CodeMirror-code') || activeEl.closest('.CodeMirror'));
     const isInInput = activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT');
-    
+
     // Ctrl/Cmd + S 保存（支持 Windows Ctrl+S 和 macOS Cmd+S）
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
@@ -2436,7 +2819,7 @@ function setupKeyboardShortcuts() {
       }
       return false;
     }
-    
+
     // Ctrl/Cmd + C 复制（不在编辑器/输入框中时）
     if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !isInEditor && !isInInput) {
       if (selectedFile && selectedConfigId) {
@@ -2444,7 +2827,7 @@ function setupKeyboardShortcuts() {
         copyToClipboard(selectedFile);
       }
     }
-    
+
     // Ctrl/Cmd + X 剪切（不在编辑器/输入框中时）
     if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !isInEditor && !isInInput) {
       if (selectedFile && selectedConfigId) {
@@ -2452,7 +2835,7 @@ function setupKeyboardShortcuts() {
         cutToClipboard(selectedFile);
       }
     }
-    
+
     // Ctrl/Cmd + V 粘贴（不在编辑器/输入框中时）
     if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !isInEditor && !isInInput) {
       if (selectedConfigId && clipboard.items.length > 0) {
@@ -2460,7 +2843,7 @@ function setupKeyboardShortcuts() {
         pasteFromClipboard(selectedFile);
       }
     }
-    
+
     // Delete 删除（不在编辑器中时）
     if (e.key === 'Delete' || (e.metaKey && e.key === 'Backspace')) {
       if (selectedFile && !isInEditor && !isInInput) {
@@ -2468,13 +2851,13 @@ function setupKeyboardShortcuts() {
         deleteCurrentFile();
       }
     }
-    
+
     // F5 刷新
     if (e.key === 'F5') {
       e.preventDefault();
       refreshFileTree();
     }
-    
+
     // F11 全屏编辑器
     if (e.key === 'F11') {
       e.preventDefault();
@@ -2482,7 +2865,7 @@ function setupKeyboardShortcuts() {
         toggleEditorFullscreen();
       }
     }
-    
+
     // ESC 退出全屏
     if (e.key === 'Escape') {
       if (isEditorFullscreen) {
@@ -2496,7 +2879,7 @@ function setupKeyboardShortcuts() {
 // ==================== 传输进度面板 ====================
 
 // 添加传输任务
-function addTransferTask(type, fileName, filePath) {
+function addTransferTask(type, fileName, filePath, options = {}) {
   const task = {
     id: ++transferIdCounter,
     type, // 'upload' | 'download'
@@ -2504,17 +2887,23 @@ function addTransferTask(type, fileName, filePath) {
     filePath,
     progress: 0,
     speed: '',
-    status: 'pending', // 'pending' | 'transferring' | 'success' | 'error'
+    status: 'pending', // 'pending' | 'transferring' | 'paused' | 'cancelled' | 'success' | 'error'
     startTime: Date.now(),
-    error: null
+    error: null,
+    // 用于重试的额外信息
+    localPath: options.localPath || null,
+    remotePath: options.remotePath || filePath,
+    configId: options.configId || selectedConfigId,
+    isDirectory: options.isDirectory || false,
+    abortController: null
   };
-  
+
   transferTasks.unshift(task);
-  
+
   // 自动打开面板
   openTransferPanel();
   renderTransferPanel();
-  
+
   return task.id;
 }
 
@@ -2538,7 +2927,7 @@ function completeTransferTask(taskId, success, error = null) {
     task.error = error;
     task.endTime = Date.now();
     renderTransferPanel();
-    
+
     // 检查是否所有任务都已完成，如果是则自动最小化
     checkAutoMinimize();
   }
@@ -2547,7 +2936,7 @@ function completeTransferTask(taskId, success, error = null) {
 // 检查是否需要自动最小化
 function checkAutoMinimize() {
   const activeCount = transferTasks.filter(t => t.status === 'pending' || t.status === 'transferring').length;
-  
+
   // 如果没有活动任务且面板是打开的，延迟后自动最小化
   if (activeCount === 0 && isTransferPanelOpen && transferTasks.length > 0) {
     setTimeout(() => {
@@ -2565,18 +2954,18 @@ function renderTransferPanel() {
   const content = document.getElementById('transferContent');
   const badge = document.getElementById('transferBadge');
   const fabBadge = document.getElementById('transferFabBadge');
-  
+
   // 计算活动任务数
   const activeCount = transferTasks.filter(t => t.status === 'pending' || t.status === 'transferring').length;
-  
+
   badge.textContent = activeCount;
   badge.style.display = activeCount > 0 ? 'inline' : 'none';
-  
+
   if (fabBadge) {
     fabBadge.textContent = activeCount;
     fabBadge.style.display = activeCount > 0 ? 'flex' : 'none';
   }
-  
+
   if (transferTasks.length === 0) {
     content.innerHTML = `
       <div class="transfer-panel-empty">
@@ -2587,17 +2976,17 @@ function renderTransferPanel() {
     lucide.createIcons();
     return;
   }
-  
+
   content.innerHTML = transferTasks.slice(0, 50).map(task => {
     const icon = task.type === 'upload' ? 'upload' : 'download';
     const statusText = getStatusText(task);
     const statusClass = task.status;
     const progressClass = task.type;
-    
+
     // 格式化时间显示
     const startTimeStr = formatTaskTime(task.startTime);
     const endTimeStr = task.endTime ? formatTaskTime(task.endTime) : '';
-    
+
     let infoText = '';
     if (task.status === 'transferring' && task.speed) {
       infoText = task.speed;
@@ -2607,13 +2996,41 @@ function renderTransferPanel() {
     } else if (task.status === 'error' && task.error) {
       infoText = task.error;
     }
-    
+
+    // 生成操作按钮
+    let actionButtons = '';
+    if (task.status === 'pending' || task.status === 'transferring') {
+      actionButtons = `
+        <button class="transfer-action-btn cancel" onclick="cancelTransferTask(${task.id})" title="取消">
+          <i data-lucide="x"></i>
+        </button>
+      `;
+    } else if (task.status === 'error' || task.status === 'cancelled') {
+      actionButtons = `
+        <button class="transfer-action-btn retry" onclick="retryTransferTask(${task.id})" title="重试">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+        <button class="transfer-action-btn remove" onclick="removeTransferTask(${task.id})" title="移除">
+          <i data-lucide="trash-2"></i>
+        </button>
+      `;
+    } else if (task.status === 'success') {
+      actionButtons = `
+        <button class="transfer-action-btn remove" onclick="removeTransferTask(${task.id})" title="移除">
+          <i data-lucide="trash-2"></i>
+        </button>
+      `;
+    }
+
     return `
       <div class="transfer-item">
         <div class="transfer-item-header">
           <div class="transfer-item-name ${task.type}">
             <i data-lucide="${icon}"></i>
             <span title="${task.filePath}">${task.fileName}</span>
+          </div>
+          <div class="transfer-item-actions">
+            ${actionButtons}
           </div>
           <span class="transfer-item-status ${statusClass}">${statusText}</span>
         </div>
@@ -2630,7 +3047,7 @@ function renderTransferPanel() {
       </div>
     `;
   }).join('');
-  
+
   lucide.createIcons();
 }
 
@@ -2639,9 +3056,105 @@ function getStatusText(task) {
   switch (task.status) {
     case 'pending': return '等待中';
     case 'transferring': return `${task.progress}%`;
+    case 'paused': return '已暂停';
+    case 'cancelled': return '已取消';
     case 'success': return '完成';
     case 'error': return '失败';
     default: return '';
+  }
+}
+
+// 取消传输任务
+function cancelTransferTask(taskId) {
+  const task = transferTasks.find(t => t.id === taskId);
+  if (task && (task.status === 'pending' || task.status === 'transferring')) {
+    task.status = 'cancelled';
+    task.error = '用户取消';
+    task.endTime = Date.now();
+
+    // 通知主进程取消任务
+    ipcRenderer.send('cancel-transfer', taskId);
+
+    renderTransferPanel();
+  }
+}
+
+// 重试传输任务
+async function retryTransferTask(taskId) {
+  const task = transferTasks.find(t => t.id === taskId);
+  if (!task || (task.status !== 'error' && task.status !== 'cancelled')) return;
+
+  // 重置任务状态
+  task.status = 'pending';
+  task.progress = 0;
+  task.error = null;
+  task.startTime = Date.now();
+  task.endTime = null;
+
+  renderTransferPanel();
+
+  // 重新执行传输
+  if (task.type === 'upload') {
+    if (task.localPath) {
+      let result;
+      if (task.isDirectory) {
+        result = await ipcRenderer.invoke('ftp-upload-dir', {
+          configId: task.configId,
+          localPath: task.localPath,
+          remotePath: task.remotePath,
+          taskId: task.id
+        });
+      } else {
+        result = await ipcRenderer.invoke('ftp-upload', {
+          configId: task.configId,
+          localPath: task.localPath,
+          remotePath: task.remotePath,
+          taskId: task.id
+        });
+      }
+      completeTransferTask(task.id, result.success, result.error);
+      if (result.success) {
+        await refreshFileTree();
+      }
+    } else {
+      completeTransferTask(task.id, false, '缺少本地路径信息，无法重试');
+    }
+  } else if (task.type === 'download') {
+    if (task.localPath && task.remotePath) {
+      let result;
+      if (task.isDirectory) {
+        result = await ipcRenderer.invoke('ftp-download-dir', {
+          configId: task.configId,
+          remotePath: task.remotePath,
+          localPath: task.localPath,
+          taskId: task.id
+        });
+      } else {
+        result = await ipcRenderer.invoke('ftp-download', {
+          configId: task.configId,
+          remotePath: task.remotePath,
+          localPath: task.localPath,
+          taskId: task.id
+        });
+      }
+      completeTransferTask(task.id, result.success, result.error);
+    } else {
+      completeTransferTask(task.id, false, '缺少路径信息，无法重试');
+    }
+  }
+}
+
+// 移除传输任务
+function removeTransferTask(taskId) {
+  const index = transferTasks.findIndex(t => t.id === taskId);
+  if (index !== -1) {
+    transferTasks.splice(index, 1);
+    renderTransferPanel();
+
+    // 如果没有任务了，隐藏悬浮按钮
+    if (transferTasks.length === 0) {
+      document.getElementById('transferFab').classList.remove('show');
+    }
   }
 }
 
@@ -2649,11 +3162,13 @@ function getStatusText(task) {
 function openTransferPanel() {
   const panel = document.getElementById('transferPanel');
   const fab = document.getElementById('transferFab');
-  
+  const overlay = document.getElementById('transferPanelOverlay');
+
   panel.classList.add('show');
   fab.classList.remove('show');
+  if (overlay) overlay.classList.add('show');
   isTransferPanelOpen = true;
-  
+
   lucide.createIcons();
 }
 
@@ -2661,14 +3176,16 @@ function openTransferPanel() {
 function closeTransferPanel() {
   const panel = document.getElementById('transferPanel');
   const fab = document.getElementById('transferFab');
-  
+  const overlay = document.getElementById('transferPanelOverlay');
+
   panel.classList.remove('show');
-  
+  if (overlay) overlay.classList.remove('show');
+
   // 如果有任务，显示悬浮按钮
   if (transferTasks.length > 0) {
     fab.classList.add('show');
   }
-  
+
   isTransferPanelOpen = false;
   lucide.createIcons();
 }
@@ -2683,7 +3200,7 @@ function toggleTransferPanel() {
 function clearCompletedTransfers() {
   transferTasks = transferTasks.filter(t => t.status === 'pending' || t.status === 'transferring');
   renderTransferPanel();
-  
+
   // 如果没有任务了，隐藏悬浮按钮
   if (transferTasks.length === 0) {
     document.getElementById('transferFab').classList.remove('show');
@@ -2701,11 +3218,12 @@ function formatSpeed(bytesPerSecond) {
   }
 }
 
-// 格式化任务时间（显示时:分:秒）
+// 格式化任务时间（显示中文格式：月/日 时:分）
 function formatTaskTime(timestamp) {
   const date = new Date(timestamp);
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  const seconds = date.getSeconds().toString().padStart(2, '0');
-  return `${hours}:${minutes}:${seconds}`;
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const hour = date.getHours().toString().padStart(2, '0');
+  const minute = date.getMinutes().toString().padStart(2, '0');
+  return `${month}月${day}日 ${hour}:${minute}`;
 }
